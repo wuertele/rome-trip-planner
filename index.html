@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rome Two-Day Destination Ranker</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f7f2e8;
+      --paper-strong: #fffaf0;
+      --ink: #181915;
+      --muted: #65645e;
+      --line: #d4c6ad;
+      --cypress: #183f36;
+      --cypress-2: #245b4e;
+      --tomato: #b93e2b;
+      --sky: #dcebef;
+      --blue: #253b73;
+      --gold: #b98735;
+      --white: #fffdf8;
+      --shadow: 0 18px 38px rgba(40, 36, 28, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+      letter-spacing: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(24, 63, 54, 0.08) 0 1px, transparent 1px 100%),
+        linear-gradient(0deg, rgba(37, 59, 115, 0.055) 0 1px, transparent 1px 100%),
+        linear-gradient(130deg, var(--paper) 0%, #f4f7f3 42%, #ece7d9 100%);
+      background-size: 48px 48px, 48px 48px, auto;
+      font-family: "Gill Sans", "Avenir Next", "Yu Gothic", "Hiragino Sans", "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 42px;
+    }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.55fr);
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .title-block {
+      position: relative;
+      overflow: hidden;
+      min-height: 252px;
+      padding: 24px;
+      color: var(--white);
+      background:
+        linear-gradient(100deg, rgba(24, 63, 54, 0.94), rgba(24, 63, 54, 0.78)),
+        url("https://commons.wikimedia.org/wiki/Special:FilePath/Colosseo_2020.jpg?width=1400") center / cover;
+      border: 1px solid rgba(255, 253, 248, 0.24);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .title-block::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 7px;
+      background: linear-gradient(90deg, var(--tomato), var(--gold), var(--sky), var(--blue));
+    }
+
+    .kicker {
+      margin: 0 0 10px;
+      color: #e4d1a6;
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-family: "Palatino Linotype", "Book Antiqua", "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 3.15rem;
+      line-height: 0.95;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      max-width: 620px;
+      margin: 16px 0 0;
+      color: rgba(255, 253, 248, 0.86);
+      font-size: 1.02rem;
+      line-height: 1.45;
+    }
+
+    .summary-panel {
+      display: flex;
+      min-height: 252px;
+      flex-direction: column;
+      gap: 16px;
+      padding: 18px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-top {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .summary-title {
+      margin: 0;
+      color: var(--cypress);
+      font-size: 0.86rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .count-pill {
+      min-width: 92px;
+      padding: 6px 10px;
+      color: var(--white);
+      background: var(--blue);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .top-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .top-list li,
+    .empty-state {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 38px;
+      padding: 8px 9px;
+      background: #f5efe2;
+      border: 1px solid rgba(212, 198, 173, 0.9);
+      border-radius: 8px;
+    }
+
+    .top-score {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 26px;
+      color: var(--white);
+      background: var(--tomato);
+      border-radius: 7px;
+      font-weight: 900;
+    }
+
+    .top-name {
+      overflow: hidden;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      grid-template-columns: 1fr;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .panel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .action-button {
+      flex: 1 1 112px;
+      min-height: 42px;
+      padding: 9px 12px;
+      color: var(--cypress);
+      background: var(--sky);
+      border: 1px solid rgba(24, 63, 54, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .action-button:hover {
+      background: #cde3e9;
+    }
+
+    .status-line {
+      min-height: 20px;
+      margin: -6px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .destination-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .destination-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.86fr) minmax(0, 1.14fr);
+      overflow: hidden;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 12px 26px rgba(52, 45, 33, 0.1);
+    }
+
+    .destination-card.is-pulse {
+      animation: pulseCard 420ms ease-out;
+    }
+
+    @keyframes pulseCard {
+      0% {
+        outline: 0 solid rgba(185, 62, 43, 0);
+      }
+      40% {
+        outline: 6px solid rgba(185, 62, 43, 0.18);
+      }
+      100% {
+        outline: 0 solid rgba(185, 62, 43, 0);
+      }
+    }
+
+    .score-ribbon {
+      position: absolute;
+      z-index: 2;
+      top: 12px;
+      left: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 48px;
+      height: 36px;
+      padding: 0 9px;
+      color: var(--white);
+      background: var(--cypress);
+      border: 1px solid rgba(255, 253, 248, 0.28);
+      border-radius: 8px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+      font-weight: 900;
+    }
+
+    .score-ribbon.is-empty {
+      color: rgba(255, 253, 248, 0.75);
+      background: rgba(24, 63, 54, 0.78);
+    }
+
+    .photo {
+      position: relative;
+      min-height: 100%;
+      margin: 0;
+      background: var(--cypress);
+    }
+
+    .photo::before {
+      content: attr(data-fallback);
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: rgba(255, 253, 248, 0.28);
+      font-family: "Palatino Linotype", "Book Antiqua", serif;
+      font-size: 5rem;
+      font-weight: 800;
+    }
+
+    .photo img {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 270px;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+    }
+
+    .photo.is-missing img {
+      opacity: 0;
+    }
+
+    .photo-credit {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      padding: 5px 7px;
+      color: var(--white);
+      background: rgba(24, 25, 21, 0.68);
+      border-radius: 7px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .card-body {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px;
+    }
+
+    .card-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(112px, 132px);
+      gap: 14px;
+      align-items: start;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--cypress);
+      font-family: "Palatino Linotype", "Book Antiqua", "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 1.56rem;
+      line-height: 1.06;
+    }
+
+    .name-ja {
+      display: block;
+      margin-top: 4px;
+      color: var(--tomato);
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 0.96rem;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .rank-control {
+      display: grid;
+      gap: 6px;
+      justify-items: stretch;
+    }
+
+    .rank-control label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .ranking-select {
+      width: 100%;
+      min-height: 42px;
+      padding: 8px 32px 8px 10px;
+      color: var(--ink);
+      background: var(--paper-strong);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .ranking-select:focus {
+      outline: 3px solid rgba(185, 62, 43, 0.28);
+      outline-offset: 2px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      min-height: 31px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .meta li {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 8px;
+      color: var(--cypress);
+      background: #edf5f0;
+      border: 1px solid rgba(24, 63, 54, 0.15);
+      border-radius: 7px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .meta li:nth-child(2n) {
+      color: var(--blue);
+      background: #eef3fb;
+      border-color: rgba(37, 59, 115, 0.13);
+    }
+
+    .meta li:nth-child(3n) {
+      color: #7d4517;
+      background: #fbf1df;
+      border-color: rgba(185, 135, 53, 0.22);
+    }
+
+    .copy {
+      display: grid;
+      gap: 9px;
+      margin-top: auto;
+    }
+
+    .copy p {
+      margin: 0;
+      color: #2e2d29;
+      font-size: 1rem;
+      line-height: 1.48;
+    }
+
+    .copy p[lang="ja"] {
+      color: #34352f;
+      font-family: "Hiragino Sans", "Yu Gothic", "Yu Mincho", sans-serif;
+      line-height: 1.62;
+    }
+
+    .source-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      padding-top: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .source-row a {
+      color: var(--blue);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      justify-content: space-between;
+      margin-top: 18px;
+      padding: 14px 2px 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .footer a {
+      color: var(--cypress);
+      text-underline-offset: 3px;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        width: min(100% - 18px, 620px);
+        padding-top: 9px;
+      }
+
+      .masthead {
+        grid-template-columns: 1fr;
+      }
+
+      .title-block,
+      .summary-panel {
+        min-height: unset;
+      }
+
+      .title-block {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 2.24rem;
+        line-height: 1;
+      }
+
+      .subtitle {
+        font-size: 0.96rem;
+      }
+
+      .destination-card {
+        grid-template-columns: 1fr;
+      }
+
+      .photo img {
+        min-height: 230px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .card-head {
+        grid-template-columns: 1fr;
+      }
+
+      .rank-control {
+        grid-template-columns: minmax(0, 1fr) minmax(118px, 142px);
+        align-items: center;
+      }
+
+      .panel-actions {
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 1.94rem;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .app {
+        width: 100%;
+        padding: 0;
+      }
+
+      .masthead {
+        display: block;
+      }
+
+      .title-block,
+      .summary-panel,
+      .destination-card {
+        box-shadow: none;
+      }
+
+      .title-block {
+        min-height: unset;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .subtitle {
+        color: var(--muted);
+      }
+
+      .panel-actions,
+      .photo-credit {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead">
+      <section class="title-block" aria-labelledby="page-title">
+        <p class="kicker">Rome · 2 days · 4 adults</p>
+        <h1 id="page-title">Destination Ranker</h1>
+        <p class="subtitle">A compact shortlist of classic Rome stops with English and Japanese notes. Interest scores sort the list highest first.</p>
+      </section>
+
+      <aside class="summary-panel" aria-label="Ranked destination summary">
+        <div class="summary-top">
+          <p class="summary-title">Current Top Choices</p>
+          <span class="count-pill" id="ranked-count">0 ranked</span>
+        </div>
+        <ol class="top-list" id="top-list"></ol>
+        <div class="panel-actions">
+          <button class="action-button" id="share-results" type="button">Share results</button>
+          <button class="action-button" id="copy-results" type="button">Copy results</button>
+          <button class="action-button" id="email-results" type="button">Email results</button>
+          <button class="action-button" id="reset-ranks" type="button">Reset scores</button>
+          <button class="action-button" id="print-page" type="button">Print</button>
+        </div>
+        <p class="status-line" id="status-line" aria-live="polite"></p>
+      </aside>
+    </header>
+
+    <section class="destination-list" id="destination-list" aria-live="polite"></section>
+
+    <footer class="footer">
+      <span>Destination set informed by Turismo Roma and public reference pages.</span>
+      <span>
+        <a href="https://www.turismoroma.it/en/page/rome-nutshell" target="_blank" rel="noopener">Turismo Roma</a>
+        ·
+        <a href="https://commons.wikimedia.org/" target="_blank" rel="noopener">Wikimedia Commons photos</a>
+      </span>
+    </footer>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "rome-trip-rankings-v1";
+    const HASH_PREFIX = "scores=";
+
+    const destinations = [
+      {
+        id: "colosseum",
+        name: "Colosseum",
+        nameJa: "コロッセオ",
+        area: "Ancient Rome",
+        time: "2-3 hr",
+        effort: "Medium",
+        note: "Check ticket",
+        image: "Colosseo_2020.jpg",
+        info: "https://colosseo.it/en/area/the-colosseum/",
+        en: "Rome's signature amphitheater, dramatic from the outside and even better with the arena and underground context. Pair it with the Forum if ancient Rome is a priority.",
+        ja: "ローマを象徴する古代円形闘技場。外観だけでも迫力があり、内部まで見ると歴史の重みを感じられます。古代ローマを重視するならフォロ・ロマーノと組み合わせたい場所です。"
+      },
+      {
+        id: "forum",
+        name: "Roman Forum & Palatine Hill",
+        nameJa: "フォロ・ロマーノとパラティーノの丘",
+        area: "Ancient Rome",
+        time: "2-3 hr",
+        effort: "High",
+        note: "Ruins walk",
+        image: "Foro_Romano_Musei_Capitolini_Roma.jpg",
+        info: "https://colosseo.it/en/area/roman-forum/",
+        en: "The political and ceremonial heart of ancient Rome, with temples, basilicas, arches, and hilltop views. Best for travelers who enjoy walking through layered ruins.",
+        ja: "古代ローマの政治と儀式の中心地。神殿、バシリカ、凱旋門の遺跡を歩きながら、パラティーノの丘から街を眺められます。遺跡歩きが好きな人向けです。"
+      },
+      {
+        id: "pantheon",
+        name: "Pantheon",
+        nameJa: "パンテオン",
+        area: "Historic center",
+        time: "45-75 min",
+        effort: "Low",
+        note: "Check ticket",
+        image: "Pantheon_(Rome)_-_Right_side_and_front.jpg",
+        info: "https://www.turismoroma.it/en/quartieri/navona-campodefiori-pantheon-viagiulia",
+        en: "A perfectly placed ancient temple with a vast dome and open oculus. It is a high-impact stop that fits easily between Piazza Navona, coffee, and gelato.",
+        ja: "巨大なドームと天窓が印象的な古代神殿。短時間でも満足度が高く、ナヴォーナ広場やカフェ、ジェラートと一緒に回りやすい場所です。"
+      },
+      {
+        id: "trevi",
+        name: "Trevi Fountain",
+        nameJa: "トレビの泉",
+        area: "Historic center",
+        time: "20-40 min",
+        effort: "Low",
+        note: "Crowded",
+        image: "Trevi_Fountain_-_Roma.jpg",
+        info: "https://www.turismoroma.it/en/node/1286",
+        en: "A theatrical Baroque fountain made for a quick, memorable stop. It is busiest midday, but early morning or late evening can feel more relaxed.",
+        ja: "劇場のように華やかなバロック様式の泉。短時間で印象に残るスポットです。昼は混みやすいので、早朝か夜の方が落ち着いて見やすいです。"
+      },
+      {
+        id: "vatican-museums",
+        name: "Vatican Museums & Sistine Chapel",
+        nameJa: "バチカン美術館とシスティーナ礼拝堂",
+        area: "Vatican",
+        time: "3-4 hr",
+        effort: "High",
+        note: "Reserve",
+        image: "Vatican Museums Spiral Staircase 2012.jpg",
+        info: "https://www.museivaticani.va/content/museivaticani/en.html",
+        en: "A major art commitment: Raphael Rooms, ancient sculpture, long galleries, and Michelangelo's Sistine Chapel ceiling. Worth it if art is one of the two-day anchors.",
+        ja: "ラファエロの間、古代彫刻、長い回廊、ミケランジェロの天井画が見られる大きな美術体験。二日間の主役に美術を入れたい場合に向いています。"
+      },
+      {
+        id: "st-peters",
+        name: "St. Peter's Basilica & Square",
+        nameJa: "サン・ピエトロ大聖堂と広場",
+        area: "Vatican",
+        time: "1.5-3 hr",
+        effort: "Medium",
+        note: "Security line",
+        image: "Basilica_di_San_Pietro_in_Vaticano_September_2015-1a.jpg",
+        info: "https://www.basilicasanpietro.va/en.html",
+        en: "A monumental basilica and open square with Bernini's colonnades. The interior, Michelangelo's Pieta, and optional dome climb can fill a Vatican half-day.",
+        ja: "ベルニーニの列柱に囲まれた広場と、圧倒的な大聖堂。内部、ミケランジェロのピエタ、希望すればクーポラ登頂まで含めて、半日コースにできます。"
+      },
+      {
+        id: "piazza-navona",
+        name: "Piazza Navona",
+        nameJa: "ナヴォーナ広場",
+        area: "Historic center",
+        time: "30-60 min",
+        effort: "Low",
+        note: "Evening good",
+        image: "Piazza_Navona_(Rome)_at_night.jpg",
+        info: "https://www.turismoroma.it/en/quartieri/navona-campodefiori-pantheon-viagiulia",
+        en: "Rome's elegant Baroque stage, shaped by an ancient stadium and centered on Bernini's Fountain of the Four Rivers. Easy to combine with the Pantheon.",
+        ja: "古代競技場の形を残した、優雅なバロック広場。ベルニーニの四大河の噴水が中心にあり、パンテオンと一緒に回りやすいです。"
+      },
+      {
+        id: "spanish-steps",
+        name: "Spanish Steps",
+        nameJa: "スペイン階段",
+        area: "Shopping walk",
+        time: "30-60 min",
+        effort: "Medium",
+        note: "Views",
+        image: "Piazza_di_Spagna_(Rome)_0004.jpg",
+        info: "https://www.turismoroma.it/en/places/piazza-di-spagna",
+        en: "A graceful staircase between Piazza di Spagna and Trinita dei Monti. Best as part of a scenic walk toward boutiques, the Pincio, or Villa Borghese.",
+        ja: "スペイン広場からトリニタ・デイ・モンティ教会へ上る優雅な階段。ショッピング街、ピンチョの丘、ヴィラ・ボルゲーゼへ向かう散歩に合います。"
+      },
+      {
+        id: "borghese",
+        name: "Borghese Gallery & Gardens",
+        nameJa: "ボルゲーゼ美術館と庭園",
+        area: "Art + park",
+        time: "2-3 hr",
+        effort: "Medium",
+        note: "Reserve",
+        image: "Galleria_borghese_facade.jpg",
+        info: "https://galleriaborghese.beniculturali.it/en/",
+        en: "A refined museum for Bernini sculpture, Caravaggio, and a calmer park break. It is a strong choice when the group wants world-class art without Vatican scale.",
+        ja: "ベルニーニの彫刻やカラヴァッジョを見られる上質な美術館と、落ち着いた公園。バチカンほど大規模ではない美術体験を選びたい時に良い候補です。"
+      },
+      {
+        id: "trastevere",
+        name: "Trastevere",
+        nameJa: "トラステヴェレ",
+        area: "Food + streets",
+        time: "1.5-3 hr",
+        effort: "Low",
+        note: "Dinner",
+        image: "Santa_Maria_in_Trastevere_fountain.jpg",
+        info: "https://www.turismoroma.it/en/quartieri/trastevere-gianicolo",
+        en: "A lively neighborhood of narrow lanes, trattorias, bars, and Santa Maria in Trastevere. Best saved for late afternoon and dinner.",
+        ja: "細い路地、トラットリア、バー、サンタ・マリア・イン・トラステヴェレ教会がある活気ある地区。夕方から夕食にかけて特に楽しめます。"
+      },
+      {
+        id: "castel-santangelo",
+        name: "Castel Sant'Angelo",
+        nameJa: "サンタンジェロ城",
+        area: "Tiber + Vatican",
+        time: "1.5-2 hr",
+        effort: "Medium",
+        note: "Views",
+        image: "Castel_Sant'_Angelo_Between_Leaves.jpg",
+        info: "https://www.gebart.it/musei/museo-nazionale-di-castel-santangelo/",
+        en: "Hadrian's mausoleum turned papal fortress, now a museum with ramps, terraces, and strong river views. It pairs naturally with St. Peter's.",
+        ja: "ハドリアヌス帝の霊廟から教皇の要塞になった建物。現在は博物館で、テラスから川沿いと街の景色を楽しめます。サン・ピエトロと組み合わせやすいです。"
+      },
+      {
+        id: "capitoline",
+        name: "Capitoline Museums",
+        nameJa: "カピトリーノ美術館",
+        area: "Ancient art",
+        time: "1.5-2.5 hr",
+        effort: "Medium",
+        note: "Check ticket",
+        image: "0_Cordonata_-_Dioscuri_-_Palazzo_Senatorio.JPG",
+        info: "https://www.museicapitolini.org/en",
+        en: "Michelangelo's hilltop square and one of Rome's essential museum collections. Good for classical sculpture, city history, and a Forum overlook.",
+        ja: "ミケランジェロ設計の丘上広場と、ローマを代表する美術館群。古代彫刻、都市の歴史、フォロ・ロマーノを見下ろす眺めが楽しめます。"
+      },
+      {
+        id: "campo-fiori",
+        name: "Campo de' Fiori",
+        nameJa: "カンポ・デ・フィオーリ",
+        area: "Market + food",
+        time: "30-75 min",
+        effort: "Low",
+        note: "Morning",
+        image: "Campo_dei_Fiori.jpg",
+        info: "https://www.turismoroma.it/en/quartieri/navona-campodefiori-pantheon-viagiulia",
+        en: "A compact market square by day and a social food-and-drink area by night. It works well as a lighter stop between major monuments.",
+        ja: "昼は市場、夜は食事や飲み物でにぎわう広場。大きな観光地の間に入れる軽めの立ち寄り先として使いやすいです。"
+      },
+      {
+        id: "appian-way",
+        name: "Appian Way & Catacombs",
+        nameJa: "アッピア街道とカタコンベ",
+        area: "Outside center",
+        time: "3-4 hr",
+        effort: "High",
+        note: "Half day",
+        image: "Paesaggio_dell'Appia_antica.jpg",
+        info: "https://www.parcoappiaantica.it/home/poi/",
+        en: "Ancient road stones, aqueduct views, cypresses, and nearby catacombs. A memorable escape from the center, but it competes with a limited two-day schedule.",
+        ja: "古代の敷石、水道橋、糸杉、近くのカタコンベを楽しめるエリア。中心部から離れた印象的な体験ですが、二日間では時間を多めに使います。"
+      },
+      {
+        id: "santa-maria-maggiore",
+        name: "Santa Maria Maggiore",
+        nameJa: "サンタ・マリア・マッジョーレ大聖堂",
+        area: "Major basilica",
+        time: "45-75 min",
+        effort: "Low",
+        note: "Church",
+        image: "Basilica_di_Santa_Maria_Maggiore_-_Roma.jpg",
+        info: "https://www.vatican.va/various/basiliche/sm_maggiore/index_en.html",
+        en: "One of Rome's major basilicas, known for mosaics, scale, and a less frantic feel than the Vatican. Useful if sacred architecture is a shared interest.",
+        ja: "ローマの主要な大聖堂の一つで、モザイクと壮大な空間が見どころ。バチカンより落ち着いており、聖堂建築に関心がある場合に向いています。"
+      },
+      {
+        id: "john-lateran",
+        name: "St. John Lateran",
+        nameJa: "サン・ジョバンニ・イン・ラテラノ大聖堂",
+        area: "Major basilica",
+        time: "45-90 min",
+        effort: "Low",
+        note: "Church",
+        image: "San_Giovanni_in_Laterano_2021.jpg",
+        info: "https://www.vatican.va/various/basiliche/san_giovanni/index_en.html",
+        en: "The cathedral of Rome and a grand papal basilica outside the Vatican. It is rewarding for architecture lovers and easier to fit than many museums.",
+        ja: "バチカン外にあるローマ司教座聖堂で、非常に壮大な教皇大聖堂。建築好きには見応えがあり、美術館より短時間で組み込みやすいです。"
+      },
+      {
+        id: "vittoriano",
+        name: "Vittoriano & Piazza Venezia",
+        nameJa: "ヴィットリオ・エマヌエーレ2世記念堂とヴェネツィア広場",
+        area: "Central landmark",
+        time: "30-90 min",
+        effort: "Medium",
+        note: "Terrace",
+        image: "Piazza_Venezia_-_Il_Vittoriano_(cropped).jpg",
+        info: "https://vive.cultura.gov.it/en/vittoriano",
+        en: "A huge white national monument at the center of Rome's traffic and history. The terraces can turn it from a quick pass-by into a skyline stop.",
+        ja: "ローマ中心部にそびえる白い巨大な国家記念堂。外観だけなら短時間で見られ、テラスまで行くと街を見渡すスポットになります。"
+      },
+      {
+        id: "janiculum",
+        name: "Janiculum Hill",
+        nameJa: "ジャニコロの丘",
+        area: "Viewpoint",
+        time: "45-90 min",
+        effort: "Medium",
+        note: "Sunset",
+        image: "Janiculum.jpg",
+        info: "https://www.turismoroma.it/en/places/janiculum",
+        en: "A broad viewpoint west of the Tiber with some of Rome's best skyline views. It is a calm add-on before or after Trastevere.",
+        ja: "テヴェレ川の西側にある眺望スポットで、ローマの街並みを広く見渡せます。トラステヴェレの前後に入れると落ち着いた時間になります。"
+      },
+      {
+        id: "popolo",
+        name: "Piazza del Popolo",
+        nameJa: "ポポロ広場",
+        area: "North center",
+        time: "30-75 min",
+        effort: "Low",
+        note: "Walk",
+        image: "PIAZZA_DEL_POPOLO_VISTA_AEREA.jpg",
+        info: "https://www.turismoroma.it/en/places/piazza-del-popolo",
+        en: "A large ceremonial square at the northern gateway of the historic center. It links nicely with the Pincio overlook, Via del Corso, and the Spanish Steps.",
+        ja: "歴史地区の北の入口にある大きな広場。ピンチョの展望台、コルソ通り、スペイン階段とつなげて歩きやすい場所です。"
+      }
+    ];
+
+    const listEl = document.querySelector("#destination-list");
+    const topListEl = document.querySelector("#top-list");
+    const rankedCountEl = document.querySelector("#ranked-count");
+    const shareButton = document.querySelector("#share-results");
+    const copyButton = document.querySelector("#copy-results");
+    const emailButton = document.querySelector("#email-results");
+    const resetButton = document.querySelector("#reset-ranks");
+    const printButton = document.querySelector("#print-page");
+    const statusLineEl = document.querySelector("#status-line");
+
+    let rankings = loadRankings();
+    saveRankings();
+
+    function loadRankings() {
+      const hashRankings = parseRankingsFromHash();
+      if (Object.keys(hashRankings).length) return hashRankings;
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return sanitizeRankings(parsed);
+      } catch {
+        return {};
+      }
+    }
+
+    function sanitizeRankings(value) {
+      const validIds = new Set(destinations.map((destination) => destination.id));
+      return Object.fromEntries(
+        Object.entries(value || {})
+          .map(([id, score]) => [id, Number(score)])
+          .filter(([id, score]) => validIds.has(id) && Number.isInteger(score) && score >= 1 && score <= 100)
+      );
+    }
+
+    function parseRankingsFromHash() {
+      const hash = (window.location.hash || "").replace(/^#/, "");
+      if (!hash.startsWith(HASH_PREFIX)) return {};
+
+      const pairs = hash.slice(HASH_PREFIX.length).split(",").filter(Boolean);
+      return sanitizeRankings(Object.fromEntries(pairs.map((pair) => {
+        const [id, score] = pair.split(":");
+        return [decodeURIComponent(id || ""), Number(score)];
+      })));
+    }
+
+    function saveRankings() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rankings));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function commonsImageUrl(file) {
+      return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=900`;
+    }
+
+    function commonsFileUrl(file) {
+      return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file)}`;
+    }
+
+    function sortedDestinations() {
+      return destinations
+        .map((destination, index) => ({
+          ...destination,
+          order: index,
+          score: rankings[destination.id] || 0
+        }))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.order - b.order;
+        });
+    }
+
+    function serializeRankings() {
+      return sortedDestinations()
+        .filter((destination) => destination.score > 0)
+        .map((destination) => `${encodeURIComponent(destination.id)}:${destination.score}`)
+        .join(",");
+    }
+
+    function buildShareUrl() {
+      const url = new URL(window.location.href);
+      const serialized = serializeRankings();
+      url.hash = serialized ? `${HASH_PREFIX}${serialized}` : "";
+      return url.toString();
+    }
+
+    function buildOptions(selectedScore) {
+      let options = '<option value="">-</option>';
+      for (let score = 100; score >= 1; score -= 1) {
+        const selected = score === selectedScore ? " selected" : "";
+        options += `<option value="${score}"${selected}>${score}</option>`;
+      }
+      return options;
+    }
+
+    function renderTopList(sorted) {
+      const ranked = sorted.filter((destination) => destination.score > 0);
+      rankedCountEl.textContent = `${ranked.length} ranked`;
+
+      if (!ranked.length) {
+        topListEl.innerHTML = '<li class="empty-state">No scores yet</li>';
+        return;
+      }
+
+      topListEl.innerHTML = ranked.slice(0, 6).map((destination) => `
+        <li>
+          <span class="top-score">${destination.score}</span>
+          <span class="top-name">${escapeHtml(destination.name)}</span>
+        </li>
+      `).join("");
+    }
+
+    function statusMessage(message) {
+      statusLineEl.textContent = message;
+      window.setTimeout(() => {
+        if (statusLineEl.textContent === message) statusLineEl.textContent = "";
+      }, 4200);
+    }
+
+    function buildResultsText() {
+      const ranked = sortedDestinations().filter((destination) => destination.score > 0);
+      const date = new Date().toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+
+      if (!ranked.length) {
+        return [
+          "Rome destination rankings",
+          `Generated: ${date}`,
+          "",
+          "No destinations have been scored yet.",
+          "",
+          `Planner: ${buildShareUrl()}`
+        ].join("\n");
+      }
+
+      const lines = ranked.map((destination, index) => {
+        const rank = String(index + 1).padStart(2, "0");
+        return `${rank}. ${destination.score} - ${destination.name} / ${destination.nameJa} (${destination.area}, ${destination.time})`;
+      });
+
+      return [
+        "Rome destination rankings",
+        `Generated: ${date}`,
+        "",
+        ...lines,
+        "",
+        `Open ranked list: ${buildShareUrl()}`,
+        "",
+        "Scale: 100 = highest interest, 1 = lowest interest."
+      ].join("\n");
+    }
+
+    async function copyResultsText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.top = "-1000px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      if (!copied) throw new Error("Copy command was not available.");
+    }
+
+    function renderDestinations(focusedId = null) {
+      const sorted = sortedDestinations();
+      renderTopList(sorted);
+
+      listEl.innerHTML = sorted.map((destination) => {
+        const scoreText = destination.score ? destination.score : "-";
+        const ribbonClass = destination.score ? "score-ribbon" : "score-ribbon is-empty";
+        const fallback = destination.name.slice(0, 1);
+        const tags = [destination.area, destination.time, destination.effort, destination.note]
+          .map((tag) => `<li>${escapeHtml(tag)}</li>`)
+          .join("");
+
+        return `
+          <article class="destination-card" data-destination="${escapeHtml(destination.id)}">
+            <span class="${ribbonClass}" aria-label="Current interest score">${scoreText}</span>
+            <figure class="photo" data-fallback="${escapeHtml(fallback)}">
+              <img
+                src="${commonsImageUrl(destination.image)}"
+                alt="${escapeHtml(destination.name)} in Rome"
+                loading="lazy"
+                onerror="this.closest('.photo').classList.add('is-missing')"
+              >
+              <a class="photo-credit" href="${commonsFileUrl(destination.image)}" target="_blank" rel="noopener">Photo source</a>
+            </figure>
+            <div class="card-body">
+              <div class="card-head">
+                <div>
+                  <h2>
+                    ${escapeHtml(destination.name)}
+                    <span class="name-ja" lang="ja">${escapeHtml(destination.nameJa)}</span>
+                  </h2>
+                </div>
+                <div class="rank-control">
+                  <label for="rank-${escapeHtml(destination.id)}">Interest 100 high</label>
+                  <select
+                    class="ranking-select"
+                    id="rank-${escapeHtml(destination.id)}"
+                    data-rank-id="${escapeHtml(destination.id)}"
+                    aria-label="Interest score for ${escapeHtml(destination.name)}, 100 high"
+                  >
+                    ${buildOptions(destination.score)}
+                  </select>
+                </div>
+              </div>
+
+              <ul class="meta" aria-label="Visit notes">${tags}</ul>
+
+              <div class="copy">
+                <p lang="en">${escapeHtml(destination.en)}</p>
+                <p lang="ja">${escapeHtml(destination.ja)}</p>
+              </div>
+
+              <div class="source-row">
+                <a href="${escapeHtml(destination.info)}" target="_blank" rel="noopener">Destination info</a>
+                <a href="${commonsFileUrl(destination.image)}" target="_blank" rel="noopener">Photo details</a>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      if (focusedId) {
+        requestAnimationFrame(() => {
+          const card = document.querySelector(`[data-destination="${CSS.escape(focusedId)}"]`);
+          const select = document.querySelector(`[data-rank-id="${CSS.escape(focusedId)}"]`);
+          if (card) {
+            card.classList.add("is-pulse");
+            window.setTimeout(() => card.classList.remove("is-pulse"), 460);
+          }
+          if (select) select.focus({ preventScroll: true });
+        });
+      }
+    }
+
+    listEl.addEventListener("change", (event) => {
+      const select = event.target.closest("[data-rank-id]");
+      if (!select) return;
+
+      const id = select.dataset.rankId;
+      const score = Number(select.value);
+      if (Number.isInteger(score) && score >= 1 && score <= 100) {
+        rankings[id] = score;
+      } else {
+        delete rankings[id];
+      }
+
+      saveRankings();
+      renderDestinations(id);
+    });
+
+    shareButton.addEventListener("click", async () => {
+      const text = buildResultsText();
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: "Rome destination rankings",
+            text,
+            url: buildShareUrl()
+          });
+          statusMessage("Shared results.");
+        } else {
+          await copyResultsText(text);
+          statusMessage("Share is unavailable, so results were copied.");
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          statusMessage("Share cancelled.");
+          return;
+        }
+        window.location.href = `mailto:?subject=${encodeURIComponent("Rome destination rankings")}&body=${encodeURIComponent(text)}`;
+      }
+    });
+
+    copyButton.addEventListener("click", async () => {
+      try {
+        await copyResultsText(buildResultsText());
+        statusMessage("Copied ranked results.");
+      } catch {
+        statusMessage("Copy was not available. Use Email results instead.");
+      }
+    });
+
+    emailButton.addEventListener("click", () => {
+      const text = buildResultsText();
+      window.location.href = `mailto:?subject=${encodeURIComponent("Rome destination rankings")}&body=${encodeURIComponent(text)}`;
+    });
+
+    resetButton.addEventListener("click", () => {
+      rankings = {};
+      saveRankings();
+      renderDestinations();
+    });
+
+    printButton.addEventListener("click", () => {
+      window.print();
+    });
+
+    renderDestinations();
+  </script>
+</body>
+</html>
