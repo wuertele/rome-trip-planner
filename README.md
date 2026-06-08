@@ -15,4 +15,5 @@ destination cards; it does not remove or reset any saved scores.
 
 The Roman Holiday filter highlights movie locations and related existing stops,
 including Via Margutta, the Mouth of Truth, Palazzo Colonna, Palazzo Barberini,
-the Spanish Steps, Castel Sant'Angelo, and other recognizable Rome scenes.
+the Arch of Septimius Severus, the Spanish Steps, Castel Sant'Angelo, and other
+recognizable Rome scenes.
