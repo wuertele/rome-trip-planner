@@ -699,6 +699,11 @@
   <script>
     const STORAGE_KEY = "rome-trip-rankings-v1";
     const HASH_PREFIX = "scores=";
+    const SUPABASE_URL = "https://hxntvwioltnctdoegefw.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_mnCZ7xzGXky1G6gvFYp1BQ_fKL5OvH-";
+    const SUPABASE_TABLE = "trip_rankings";
+    const SUPABASE_TRIP_ID = "rome-trip-planner";
+    const SYNC_POLL_MS = 15000;
 
     const categoryDefinitions = [
       { id: "all", label: "All" },
@@ -1084,6 +1089,12 @@
 
     let activeCategory = "all";
     let rankings = loadRankings();
+    let remoteSync = {
+      lastSignature: "",
+      saveTimer: null,
+      isSaving: false,
+      isPolling: false
+    };
     saveRankings();
 
     function loadRankings() {
@@ -1121,6 +1132,158 @@
 
     function saveRankings() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rankings));
+    }
+
+    function canonicalRankings(value) {
+      return sanitizeRankings(value);
+    }
+
+    function hasRankings(value) {
+      return Object.keys(canonicalRankings(value)).length > 0;
+    }
+
+    function rankingsSignature(value) {
+      return JSON.stringify(canonicalRankings(value));
+    }
+
+    function mergeRankings(remoteRankings, localRankings) {
+      return sanitizeRankings({
+        ...canonicalRankings(remoteRankings),
+        ...canonicalRankings(localRankings)
+      });
+    }
+
+    function remoteSyncConfigured() {
+      return Boolean(
+        SUPABASE_URL &&
+        SUPABASE_PUBLISHABLE_KEY &&
+        !SUPABASE_PUBLISHABLE_KEY.startsWith("__")
+      );
+    }
+
+    function supabaseHeaders(extraHeaders = {}) {
+      return {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        ...extraHeaders
+      };
+    }
+
+    async function fetchRemoteRankings() {
+      const query = new URLSearchParams({
+        "trip_id": `eq.${SUPABASE_TRIP_ID}`,
+        "select": "rankings,updated_at",
+        "limit": "1"
+      });
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?${query}`, {
+        headers: supabaseHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Remote fetch failed: ${response.status}`);
+      }
+
+      const rows = await response.json();
+      return sanitizeRankings(rows[0]?.rankings || {});
+    }
+
+    async function saveRemoteRankings() {
+      if (!remoteSyncConfigured()) return;
+
+      remoteSync.isSaving = true;
+      try {
+        const clean = canonicalRankings(rankings);
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+          method: "POST",
+          headers: supabaseHeaders({
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal"
+          }),
+          body: JSON.stringify({
+            trip_id: SUPABASE_TRIP_ID,
+            rankings: clean
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Remote save failed: ${response.status}`);
+        }
+
+        remoteSync.lastSignature = rankingsSignature(clean);
+        statusMessage("Saved shared rankings.");
+      } catch (error) {
+        console.error(error);
+        statusMessage("Shared save failed; this browser still saved the ranks.");
+      } finally {
+        remoteSync.isSaving = false;
+      }
+    }
+
+    function queueRemoteSave() {
+      if (!remoteSyncConfigured()) return;
+
+      window.clearTimeout(remoteSync.saveTimer);
+      remoteSync.saveTimer = window.setTimeout(() => {
+        saveRemoteRankings();
+      }, 650);
+    }
+
+    async function pollRemoteRankings() {
+      if (!remoteSyncConfigured() || remoteSync.isSaving || remoteSync.isPolling) return;
+
+      remoteSync.isPolling = true;
+      try {
+        const remoteRankings = await fetchRemoteRankings();
+        const remoteSignature = rankingsSignature(remoteRankings);
+        const localSignature = rankingsSignature(rankings);
+
+        if (remoteSignature && remoteSignature !== remoteSync.lastSignature && remoteSignature !== localSignature) {
+          rankings = remoteRankings;
+          remoteSync.lastSignature = remoteSignature;
+          saveRankings();
+          renderDestinations();
+          statusMessage("Loaded shared ranking updates.");
+        } else {
+          remoteSync.lastSignature = remoteSignature;
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        remoteSync.isPolling = false;
+      }
+    }
+
+    async function initializeRemoteSync() {
+      if (!remoteSyncConfigured()) return;
+
+      try {
+        const localRankings = canonicalRankings(rankings);
+        const remoteRankings = await fetchRemoteRankings();
+        const remoteHasRankings = hasRankings(remoteRankings);
+        const localHasRankings = hasRankings(localRankings);
+        const mergedRankings = remoteHasRankings
+          ? remoteRankings
+          : (localHasRankings ? mergeRankings(remoteRankings, localRankings) : remoteRankings);
+
+        if (rankingsSignature(mergedRankings) !== rankingsSignature(rankings)) {
+          rankings = mergedRankings;
+          saveRankings();
+          renderDestinations();
+        }
+
+        remoteSync.lastSignature = rankingsSignature(remoteRankings);
+
+        if (rankingsSignature(mergedRankings) !== remoteSync.lastSignature) {
+          await saveRemoteRankings();
+        } else {
+          statusMessage(hasRankings(mergedRankings) ? "Loaded shared rankings." : "Shared sync ready.");
+        }
+
+        window.setInterval(pollRemoteRankings, SYNC_POLL_MS);
+      } catch (error) {
+        console.error(error);
+        statusMessage("Shared sync is not ready; using this browser's saved ranks.");
+      }
     }
 
     function escapeHtml(value) {
@@ -1383,6 +1546,7 @@
       }
 
       saveRankings();
+      queueRemoteSave();
       renderDestinations(id);
     });
 
@@ -1432,8 +1596,12 @@
     });
 
     resetButton.addEventListener("click", () => {
+      const confirmed = window.confirm("Reset all shared Rome scores?");
+      if (!confirmed) return;
+
       rankings = {};
       saveRankings();
+      queueRemoteSave();
       renderDestinations();
     });
 
@@ -1442,6 +1610,7 @@
     });
 
     renderDestinations();
+    initializeRemoteSync();
   </script>
 </body>
 </html>
