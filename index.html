@@ -229,6 +229,63 @@
       font-weight: 800;
     }
 
+    .filter-panel {
+      display: grid;
+      grid-template-columns: minmax(170px, 0.25fr) minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: rgba(255, 253, 248, 0.86);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 22px rgba(52, 45, 33, 0.08);
+    }
+
+    .filter-title {
+      margin: 0 0 3px;
+      color: var(--cypress);
+      font-size: 0.8rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .filter-count {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+    }
+
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: flex-end;
+    }
+
+    .filter-button {
+      min-height: 36px;
+      padding: 7px 10px;
+      color: var(--cypress);
+      background: var(--paper-strong);
+      border: 1px solid rgba(24, 63, 54, 0.18);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .filter-button:hover {
+      background: #f7ead8;
+    }
+
+    .filter-button[aria-pressed="true"] {
+      color: var(--white);
+      background: var(--tomato);
+      border-color: rgba(185, 62, 43, 0.42);
+    }
+
     .destination-list {
       display: grid;
       grid-template-columns: 1fr;
@@ -514,6 +571,14 @@
         grid-template-columns: 1fr;
       }
 
+      .filter-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-buttons {
+        justify-content: flex-start;
+      }
+
       .photo img {
         min-height: 230px;
       }
@@ -531,6 +596,15 @@
 
       .panel-actions {
         flex-direction: column;
+      }
+
+      .filter-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .filter-button {
+        width: 100%;
       }
 
       h1 {
@@ -569,6 +643,7 @@
       }
 
       .panel-actions,
+      .filter-panel,
       .photo-credit {
         display: none;
       }
@@ -601,6 +676,14 @@
       </aside>
     </header>
 
+    <section class="filter-panel" aria-labelledby="filter-title">
+      <div>
+        <p class="filter-title" id="filter-title">Filter</p>
+        <p class="filter-count" id="filter-count">Showing all destinations</p>
+      </div>
+      <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
+    </section>
+
     <section class="destination-list" id="destination-list" aria-live="polite"></section>
 
     <footer class="footer">
@@ -617,11 +700,24 @@
     const STORAGE_KEY = "rome-trip-rankings-v1";
     const HASH_PREFIX = "scores=";
 
+    const categoryDefinitions = [
+      { id: "all", label: "All" },
+      { id: "ancient", label: "Ancient Rome" },
+      { id: "museum", label: "Museums" },
+      { id: "architecture", label: "Architecture" },
+      { id: "church", label: "Churches" },
+      { id: "square", label: "Squares & Fountains" },
+      { id: "food", label: "Food & Neighborhoods" },
+      { id: "view", label: "Views & Parks" },
+      { id: "walk", label: "Outdoor Walks" }
+    ];
+
     const destinations = [
       {
         id: "colosseum",
         name: "Colosseum",
         nameJa: "コロッセオ",
+        categoryIds: ["ancient", "architecture"],
         area: "Ancient Rome",
         time: "2-3 hr",
         effort: "Medium",
@@ -635,6 +731,7 @@
         id: "forum",
         name: "Roman Forum & Palatine Hill",
         nameJa: "フォロ・ロマーノとパラティーノの丘",
+        categoryIds: ["ancient", "walk"],
         area: "Ancient Rome",
         time: "2-3 hr",
         effort: "High",
@@ -648,6 +745,7 @@
         id: "pantheon",
         name: "Pantheon",
         nameJa: "パンテオン",
+        categoryIds: ["ancient", "architecture", "church"],
         area: "Historic center",
         time: "45-75 min",
         effort: "Low",
@@ -661,6 +759,7 @@
         id: "trevi",
         name: "Trevi Fountain",
         nameJa: "トレビの泉",
+        categoryIds: ["square", "architecture"],
         area: "Historic center",
         time: "20-40 min",
         effort: "Low",
@@ -674,6 +773,7 @@
         id: "vatican-museums",
         name: "Vatican Museums & Sistine Chapel",
         nameJa: "バチカン美術館とシスティーナ礼拝堂",
+        categoryIds: ["museum"],
         area: "Vatican",
         time: "3-4 hr",
         effort: "High",
@@ -687,6 +787,7 @@
         id: "st-peters",
         name: "St. Peter's Basilica & Square",
         nameJa: "サン・ピエトロ大聖堂と広場",
+        categoryIds: ["church", "architecture"],
         area: "Vatican",
         time: "1.5-3 hr",
         effort: "Medium",
@@ -700,6 +801,7 @@
         id: "piazza-navona",
         name: "Piazza Navona",
         nameJa: "ナヴォーナ広場",
+        categoryIds: ["square", "architecture"],
         area: "Historic center",
         time: "30-60 min",
         effort: "Low",
@@ -713,6 +815,7 @@
         id: "spanish-steps",
         name: "Spanish Steps",
         nameJa: "スペイン階段",
+        categoryIds: ["square", "architecture", "walk"],
         area: "Shopping walk",
         time: "30-60 min",
         effort: "Medium",
@@ -726,6 +829,7 @@
         id: "borghese",
         name: "Borghese Gallery & Gardens",
         nameJa: "ボルゲーゼ美術館と庭園",
+        categoryIds: ["museum", "view"],
         area: "Art + park",
         time: "2-3 hr",
         effort: "Medium",
@@ -739,6 +843,7 @@
         id: "trastevere",
         name: "Trastevere",
         nameJa: "トラステヴェレ",
+        categoryIds: ["food", "walk", "church"],
         area: "Food + streets",
         time: "1.5-3 hr",
         effort: "Low",
@@ -752,6 +857,7 @@
         id: "castel-santangelo",
         name: "Castel Sant'Angelo",
         nameJa: "サンタンジェロ城",
+        categoryIds: ["museum", "architecture", "view"],
         area: "Tiber + Vatican",
         time: "1.5-2 hr",
         effort: "Medium",
@@ -765,6 +871,7 @@
         id: "capitoline",
         name: "Capitoline Museums",
         nameJa: "カピトリーノ美術館",
+        categoryIds: ["museum", "ancient", "architecture"],
         area: "Ancient art",
         time: "1.5-2.5 hr",
         effort: "Medium",
@@ -778,6 +885,7 @@
         id: "campo-fiori",
         name: "Campo de' Fiori",
         nameJa: "カンポ・デ・フィオーリ",
+        categoryIds: ["food", "square"],
         area: "Market + food",
         time: "30-75 min",
         effort: "Low",
@@ -791,6 +899,7 @@
         id: "appian-way",
         name: "Appian Way & Catacombs",
         nameJa: "アッピア街道とカタコンベ",
+        categoryIds: ["ancient", "walk"],
         area: "Outside center",
         time: "3-4 hr",
         effort: "High",
@@ -804,6 +913,7 @@
         id: "santa-maria-maggiore",
         name: "Santa Maria Maggiore",
         nameJa: "サンタ・マリア・マッジョーレ大聖堂",
+        categoryIds: ["church", "architecture"],
         area: "Major basilica",
         time: "45-75 min",
         effort: "Low",
@@ -817,6 +927,7 @@
         id: "john-lateran",
         name: "St. John Lateran",
         nameJa: "サン・ジョバンニ・イン・ラテラノ大聖堂",
+        categoryIds: ["church", "architecture"],
         area: "Major basilica",
         time: "45-90 min",
         effort: "Low",
@@ -830,6 +941,7 @@
         id: "vittoriano",
         name: "Vittoriano & Piazza Venezia",
         nameJa: "ヴィットリオ・エマヌエーレ2世記念堂とヴェネツィア広場",
+        categoryIds: ["architecture", "view"],
         area: "Central landmark",
         time: "30-90 min",
         effort: "Medium",
@@ -843,6 +955,7 @@
         id: "janiculum",
         name: "Janiculum Hill",
         nameJa: "ジャニコロの丘",
+        categoryIds: ["view", "walk"],
         area: "Viewpoint",
         time: "45-90 min",
         effort: "Medium",
@@ -856,6 +969,7 @@
         id: "popolo",
         name: "Piazza del Popolo",
         nameJa: "ポポロ広場",
+        categoryIds: ["square", "walk", "architecture"],
         area: "North center",
         time: "30-75 min",
         effort: "Low",
@@ -867,7 +981,13 @@
       }
     ];
 
+    const categoryLabels = Object.fromEntries(
+      categoryDefinitions.map((category) => [category.id, category.label])
+    );
+
     const listEl = document.querySelector("#destination-list");
+    const filterButtonsEl = document.querySelector("#filter-buttons");
+    const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
     const rankedCountEl = document.querySelector("#ranked-count");
     const shareButton = document.querySelector("#share-results");
@@ -877,6 +997,7 @@
     const printButton = document.querySelector("#print-page");
     const statusLineEl = document.querySelector("#status-line");
 
+    let activeCategory = "all";
     let rankings = loadRankings();
     saveRankings();
 
@@ -945,6 +1066,42 @@
           if (b.score !== a.score) return b.score - a.score;
           return a.order - b.order;
         });
+    }
+
+    function destinationsForCategory(sorted, categoryId = activeCategory) {
+      if (categoryId === "all") return sorted;
+      return sorted.filter((destination) => destination.categoryIds.includes(categoryId));
+    }
+
+    function categoryLabel(categoryId) {
+      return categoryLabels[categoryId] || categoryId;
+    }
+
+    function renderFilterButtons(sorted) {
+      filterButtonsEl.innerHTML = categoryDefinitions.map((category) => {
+        const count = destinationsForCategory(sorted, category.id).length;
+        const pressed = category.id === activeCategory ? "true" : "false";
+        const countText = category.id === "all" ? destinations.length : count;
+        return `
+          <button
+            class="filter-button"
+            type="button"
+            data-category="${escapeHtml(category.id)}"
+            aria-pressed="${pressed}"
+          >
+            ${escapeHtml(category.label)} ${countText}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderFilterCount(visibleCount) {
+      if (activeCategory === "all") {
+        filterCountEl.textContent = `Showing all ${visibleCount} destinations`;
+        return;
+      }
+
+      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}`;
     }
 
     function serializeRankings() {
@@ -1052,13 +1209,17 @@
 
     function renderDestinations(focusedId = null) {
       const sorted = sortedDestinations();
+      const visible = destinationsForCategory(sorted);
       renderTopList(sorted);
+      renderFilterButtons(sorted);
+      renderFilterCount(visible.length);
 
-      listEl.innerHTML = sorted.map((destination) => {
+      listEl.innerHTML = visible.map((destination) => {
         const scoreText = destination.score ? destination.score : "-";
         const ribbonClass = destination.score ? "score-ribbon" : "score-ribbon is-empty";
         const fallback = destination.name.slice(0, 1);
-        const tags = [destination.area, destination.time, destination.effort, destination.note]
+        const categoryTags = destination.categoryIds.map(categoryLabel);
+        const tags = [...categoryTags, destination.area, destination.time, destination.effort, destination.note]
           .map((tag) => `<li>${escapeHtml(tag)}</li>`)
           .join("");
 
@@ -1138,6 +1299,14 @@
 
       saveRankings();
       renderDestinations(id);
+    });
+
+    filterButtonsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-category]");
+      if (!button) return;
+
+      activeCategory = button.dataset.category;
+      renderDestinations();
     });
 
     shareButton.addEventListener("click", async () => {
