@@ -264,6 +264,20 @@
       justify-content: flex-end;
     }
 
+    .control-groups {
+      display: grid;
+      gap: 9px;
+      justify-items: end;
+    }
+
+    .sort-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: flex-end;
+    }
+
+    .sort-button,
     .filter-button {
       min-height: 36px;
       padding: 7px 10px;
@@ -276,10 +290,12 @@
       font-weight: 900;
     }
 
+    .sort-button:hover,
     .filter-button:hover {
       background: #f7ead8;
     }
 
+    .sort-button[aria-pressed="true"],
     .filter-button[aria-pressed="true"] {
       color: var(--white);
       background: var(--tomato);
@@ -343,6 +359,12 @@
       background: rgba(24, 63, 54, 0.78);
     }
 
+    .score-ribbon small {
+      margin-left: 5px;
+      font-size: 0.64rem;
+      opacity: 0.78;
+    }
+
     .photo {
       position: relative;
       min-height: 100%;
@@ -399,7 +421,7 @@
 
     .card-head {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(112px, 132px);
+      grid-template-columns: minmax(0, 1fr) minmax(276px, 360px);
       gap: 14px;
       align-items: start;
     }
@@ -420,6 +442,12 @@
       font-size: 0.96rem;
       line-height: 1.35;
       font-weight: 700;
+    }
+
+    .rank-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .rank-control {
@@ -579,13 +607,20 @@
         justify-content: flex-start;
       }
 
+      .control-groups,
+      .sort-buttons {
+        justify-items: stretch;
+        justify-content: flex-start;
+      }
+
       .photo img {
         min-height: 230px;
       }
     }
 
     @media (max-width: 520px) {
-      .card-head {
+      .card-head,
+      .rank-grid {
         grid-template-columns: 1fr;
       }
 
@@ -598,11 +633,13 @@
         flex-direction: column;
       }
 
+      .sort-buttons,
       .filter-buttons {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .sort-button,
       .filter-button {
         width: 100%;
       }
@@ -644,6 +681,7 @@
 
       .panel-actions,
       .filter-panel,
+      .sort-buttons,
       .photo-credit {
         display: none;
       }
@@ -656,20 +694,20 @@
       <section class="title-block" aria-labelledby="page-title">
         <p class="kicker">Rome · 2 days · 4 adults</p>
         <h1 id="page-title">Destination Ranker</h1>
-        <p class="subtitle">A compact shortlist of classic Rome stops with English and Japanese notes. Interest scores sort the list highest first.</p>
+        <p class="subtitle">A compact shortlist of classic Rome stops with English and Japanese notes. Dave, Tomoko, and Kentaro can rank together, with higher scores sorting first.</p>
       </section>
 
       <aside class="summary-panel" aria-label="Ranked destination summary">
         <div class="summary-top">
-          <p class="summary-title">Current Top Choices</p>
-          <span class="count-pill" id="ranked-count">0 ranked</span>
+          <p class="summary-title">Combined Top Choices</p>
+          <span class="count-pill" id="ranked-count">0 Dave / 0 Tomoko / 0 Kentaro</span>
         </div>
         <ol class="top-list" id="top-list"></ol>
         <div class="panel-actions">
           <button class="action-button" id="share-results" type="button">Share results</button>
           <button class="action-button" id="copy-results" type="button">Copy results</button>
           <button class="action-button" id="email-results" type="button">Email results</button>
-          <button class="action-button" id="reset-ranks" type="button">Reset scores</button>
+          <button class="action-button" id="reset-ranks" type="button">Reset ranks</button>
           <button class="action-button" id="print-page" type="button">Print</button>
         </div>
         <p class="status-line" id="status-line" aria-live="polite"></p>
@@ -681,7 +719,10 @@
         <p class="filter-title" id="filter-title">Filter</p>
         <p class="filter-count" id="filter-count">Showing all destinations</p>
       </div>
-      <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
+      <div class="control-groups">
+        <div class="sort-buttons" id="sort-buttons" role="group" aria-label="Sort order"></div>
+        <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
+      </div>
     </section>
 
     <section class="destination-list" id="destination-list" aria-live="polite"></section>
@@ -698,12 +739,26 @@
 
   <script>
     const STORAGE_KEY = "rome-trip-rankings-v1";
-    const HASH_PREFIX = "scores=";
+    const HASH_PREFIX = "rome-scores=";
     const SUPABASE_URL = "https://hxntvwioltnctdoegefw.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_mnCZ7xzGXky1G6gvFYp1BQ_fKL5OvH-";
     const SUPABASE_TABLE = "trip_rankings";
     const SUPABASE_TRIP_ID = "rome-trip-planner";
     const SYNC_POLL_MS = 15000;
+
+    const people = [
+      { id: "dave", label: "Dave", code: "d" },
+      { id: "tomoko", label: "Tomoko", code: "t" },
+      { id: "kentaro", label: "Kentaro", code: "k" }
+    ];
+
+    const codeToPerson = Object.fromEntries(people.map((person) => [person.code, person.id]));
+    const travelerText = people.map((person) => person.label).join(", ");
+
+    const sortDefinitions = [
+      { id: "combined", label: "Combined" },
+      ...people.map((person) => ({ id: person.id, label: person.label }))
+    ];
 
     const categoryDefinitions = [
       { id: "all", label: "All" },
@@ -1075,8 +1130,13 @@
       categoryDefinitions.map((category) => [category.id, category.label])
     );
 
+    const personLabels = Object.fromEntries(
+      people.map((person) => [person.id, person.label])
+    );
+
     const listEl = document.querySelector("#destination-list");
     const filterButtonsEl = document.querySelector("#filter-buttons");
+    const sortButtonsEl = document.querySelector("#sort-buttons");
     const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
     const rankedCountEl = document.querySelector("#ranked-count");
@@ -1088,12 +1148,15 @@
     const statusLineEl = document.querySelector("#status-line");
 
     let activeCategory = "all";
+    let sortMode = "combined";
     let rankings = loadRankings();
     let remoteSync = {
       lastSignature: "",
       saveTimer: null,
       isSaving: false,
-      isPolling: false
+      isPolling: false,
+      pendingChanges: new Map(),
+      pendingClearAll: false
     };
     saveRankings();
 
@@ -1112,22 +1175,69 @@
 
     function sanitizeRankings(value) {
       const validIds = new Set(destinations.map((destination) => destination.id));
-      return Object.fromEntries(
-        Object.entries(value || {})
-          .map(([id, score]) => [id, Number(score)])
-          .filter(([id, score]) => validIds.has(id) && Number.isInteger(score) && score >= 1 && score <= 100)
-      );
+      const validPeople = new Set(people.map((person) => person.id));
+      const clean = {};
+
+      Object.entries(value || {}).forEach(([id, scores]) => {
+        if (!validIds.has(id)) return;
+
+        const legacyScore = Number(scores);
+        if (Number.isInteger(legacyScore) && legacyScore >= 1 && legacyScore <= 100) {
+          clean[id] = { tomoko: legacyScore };
+          return;
+        }
+
+        if (typeof scores !== "object" || !scores) return;
+        const cleanScores = {};
+
+        Object.entries(scores).forEach(([personId, score]) => {
+          const numericScore = Number(score);
+          if (
+            validPeople.has(personId) &&
+            Number.isInteger(numericScore) &&
+            numericScore >= 1 &&
+            numericScore <= 100
+          ) {
+            cleanScores[personId] = numericScore;
+          }
+        });
+
+        if (Object.keys(cleanScores).length) clean[id] = cleanScores;
+      });
+
+      return clean;
     }
 
     function parseRankingsFromHash() {
       const hash = (window.location.hash || "").replace(/^#/, "");
-      if (!hash.startsWith(HASH_PREFIX)) return {};
+      if (!hash.startsWith(HASH_PREFIX) && !hash.startsWith("scores=")) return {};
 
-      const pairs = hash.slice(HASH_PREFIX.length).split(",").filter(Boolean);
-      return sanitizeRankings(Object.fromEntries(pairs.map((pair) => {
-        const [id, score] = pair.split(":");
-        return [decodeURIComponent(id || ""), Number(score)];
-      })));
+      const isLegacy = hash.startsWith("scores=");
+      const entries = hash.slice(isLegacy ? "scores=".length : HASH_PREFIX.length).split(",").filter(Boolean);
+      const parsed = {};
+
+      entries.forEach((entry) => {
+        const [encodedId, encodedScores] = entry.split(":");
+        const id = decodeURIComponent(encodedId || "");
+        if (!id || !encodedScores) return;
+
+        if (isLegacy) {
+          parsed[id] = Number(encodedScores);
+          return;
+        }
+
+        const scores = {};
+        encodedScores.split(".").forEach((token) => {
+          const code = token.slice(0, 1);
+          const personId = codeToPerson[code];
+          const score = Number(token.slice(1));
+          if (personId) scores[personId] = score;
+        });
+
+        parsed[id] = scores;
+      });
+
+      return sanitizeRankings(parsed);
     }
 
     function saveRankings() {
@@ -1135,7 +1245,25 @@
     }
 
     function canonicalRankings(value) {
-      return sanitizeRankings(value);
+      const clean = sanitizeRankings(value);
+      const canonical = {};
+
+      destinations.forEach((destination) => {
+        const scores = clean[destination.id] || {};
+        const cleanScores = {};
+
+        people.forEach((person) => {
+          if (Number.isInteger(scores[person.id])) {
+            cleanScores[person.id] = scores[person.id];
+          }
+        });
+
+        if (Object.keys(cleanScores).length) {
+          canonical[destination.id] = cleanScores;
+        }
+      });
+
+      return canonical;
     }
 
     function hasRankings(value) {
@@ -1147,10 +1275,49 @@
     }
 
     function mergeRankings(remoteRankings, localRankings) {
-      return sanitizeRankings({
-        ...canonicalRankings(remoteRankings),
-        ...canonicalRankings(localRankings)
+      const merged = canonicalRankings(remoteRankings);
+      const local = canonicalRankings(localRankings);
+
+      Object.entries(local).forEach(([destinationId, scores]) => {
+        Object.entries(scores).forEach(([personId, score]) => {
+          if (!Number.isInteger(merged[destinationId]?.[personId])) {
+            if (!merged[destinationId]) merged[destinationId] = {};
+            merged[destinationId][personId] = score;
+          }
+        });
       });
+
+      return sanitizeRankings(merged);
+    }
+
+    function rememberPendingChange(destinationId, personId, action) {
+      remoteSync.pendingClearAll = false;
+      remoteSync.pendingChanges.set(`${destinationId}:${personId}`, {
+        destinationId,
+        personId,
+        action
+      });
+    }
+
+    function applyPendingChanges(baseRankings, localRankings) {
+      const merged = canonicalRankings(baseRankings);
+      const local = canonicalRankings(localRankings);
+
+      remoteSync.pendingChanges.forEach(({ destinationId, personId, action }) => {
+        if (action === "delete") {
+          if (!merged[destinationId]) return;
+          delete merged[destinationId][personId];
+          if (!Object.keys(merged[destinationId]).length) delete merged[destinationId];
+          return;
+        }
+
+        const score = local[destinationId]?.[personId];
+        if (!Number.isInteger(score)) return;
+        if (!merged[destinationId]) merged[destinationId] = {};
+        merged[destinationId][personId] = score;
+      });
+
+      return sanitizeRankings(merged);
     }
 
     function remoteSyncConfigured() {
@@ -1192,7 +1359,12 @@
 
       remoteSync.isSaving = true;
       try {
-        const clean = canonicalRankings(rankings);
+        const localRankings = canonicalRankings(rankings);
+        const remoteRankings = remoteSync.pendingClearAll ? {} : await fetchRemoteRankings();
+        const mergedRankings = remoteSync.pendingClearAll
+          ? {}
+          : applyPendingChanges(mergeRankings(remoteRankings, localRankings), localRankings);
+        const clean = canonicalRankings(mergedRankings);
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
           method: "POST",
           headers: supabaseHeaders({
@@ -1209,7 +1381,15 @@
           throw new Error(`Remote save failed: ${response.status}`);
         }
 
+        if (rankingsSignature(clean) !== rankingsSignature(rankings)) {
+          rankings = clean;
+          saveRankings();
+          renderDestinations();
+        }
+
         remoteSync.lastSignature = rankingsSignature(clean);
+        remoteSync.pendingChanges.clear();
+        remoteSync.pendingClearAll = false;
         statusMessage("Saved shared rankings.");
       } catch (error) {
         console.error(error);
@@ -1229,20 +1409,25 @@
     }
 
     async function pollRemoteRankings() {
-      if (!remoteSyncConfigured() || remoteSync.isSaving || remoteSync.isPolling) return;
+      if (!remoteSyncConfigured() || remoteSync.isSaving || remoteSync.isPolling || remoteSync.pendingClearAll) return;
 
       remoteSync.isPolling = true;
       try {
         const remoteRankings = await fetchRemoteRankings();
         const remoteSignature = rankingsSignature(remoteRankings);
         const localSignature = rankingsSignature(rankings);
+        const mergedRankings = applyPendingChanges(mergeRankings(remoteRankings, rankings), rankings);
+        const mergedSignature = rankingsSignature(mergedRankings);
 
-        if (remoteSignature && remoteSignature !== remoteSync.lastSignature && remoteSignature !== localSignature) {
-          rankings = remoteRankings;
+        if (remoteSignature && remoteSignature !== localSignature) {
+          if (mergedSignature !== localSignature) {
+            rankings = mergedRankings;
+            saveRankings();
+            renderDestinations();
+          }
           remoteSync.lastSignature = remoteSignature;
-          saveRankings();
-          renderDestinations();
-          statusMessage("Loaded shared ranking updates.");
+          if (mergedSignature !== remoteSignature) queueRemoteSave();
+          statusMessage("Merged shared ranking updates.");
         } else {
           remoteSync.lastSignature = remoteSignature;
         }
@@ -1259,11 +1444,7 @@
       try {
         const localRankings = canonicalRankings(rankings);
         const remoteRankings = await fetchRemoteRankings();
-        const remoteHasRankings = hasRankings(remoteRankings);
-        const localHasRankings = hasRankings(localRankings);
-        const mergedRankings = remoteHasRankings
-          ? remoteRankings
-          : (localHasRankings ? mergeRankings(remoteRankings, localRankings) : remoteRankings);
+        const mergedRankings = mergeRankings(remoteRankings, localRankings);
 
         if (rankingsSignature(mergedRankings) !== rankingsSignature(rankings)) {
           rankings = mergedRankings;
@@ -1303,15 +1484,45 @@
       return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file)}`;
     }
 
-    function sortedDestinations() {
+    function scoreFor(destination, mode = sortMode) {
+      const scores = rankings[destination.id] || {};
+      if (mode !== "combined") return scores[mode] || null;
+
+      const assignedScores = people
+        .map((person) => scores[person.id])
+        .filter((score) => Number.isInteger(score));
+
+      if (!assignedScores.length) return null;
+
+      const total = assignedScores.reduce((sum, score) => sum + score, 0);
+      return total / assignedScores.length;
+    }
+
+    function formatScore(score) {
+      if (!Number.isFinite(score)) return "-";
+      return Number.isInteger(score) ? String(score) : score.toFixed(1);
+    }
+
+    function rankedCountFor(destination) {
+      const scores = rankings[destination.id] || {};
+      return people.filter((person) => scores[person.id] > 0).length;
+    }
+
+    function sortedDestinations(mode = sortMode) {
       return destinations
         .map((destination, index) => ({
           ...destination,
           order: index,
-          score: rankings[destination.id] || 0
+          sortScore: scoreFor(destination, mode),
+          rankedCount: rankedCountFor(destination)
         }))
         .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
+          const aHasScore = Number.isFinite(a.sortScore);
+          const bHasScore = Number.isFinite(b.sortScore);
+          if (aHasScore && !bHasScore) return -1;
+          if (!aHasScore && bHasScore) return 1;
+          if (aHasScore && bHasScore && a.sortScore !== b.sortScore) return b.sortScore - a.sortScore;
+          if (b.rankedCount !== a.rankedCount) return b.rankedCount - a.rankedCount;
           return a.order - b.order;
         });
     }
@@ -1344,18 +1555,43 @@
     }
 
     function renderFilterCount(visibleCount) {
+      const sortLabel = sortDefinitions.find((definition) => definition.id === sortMode)?.label || "Combined";
       if (activeCategory === "all") {
-        filterCountEl.textContent = `Showing all ${visibleCount} destinations`;
+        filterCountEl.textContent = `Showing all ${visibleCount} destinations - ${sortLabel} sort`;
         return;
       }
 
-      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}`;
+      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)} - ${sortLabel} sort`;
+    }
+
+    function renderSortButtons() {
+      sortButtonsEl.innerHTML = sortDefinitions.map((sort) => {
+        const pressed = sort.id === sortMode ? "true" : "false";
+        return `
+          <button
+            class="sort-button"
+            type="button"
+            data-sort="${escapeHtml(sort.id)}"
+            aria-pressed="${pressed}"
+          >
+            ${escapeHtml(sort.label)}
+          </button>
+        `;
+      }).join("");
     }
 
     function serializeRankings() {
-      return sortedDestinations()
-        .filter((destination) => destination.score > 0)
-        .map((destination) => `${encodeURIComponent(destination.id)}:${destination.score}`)
+      return destinations
+        .map((destination) => {
+          const scores = rankings[destination.id] || {};
+          const tokens = people
+            .filter((person) => scores[person.id] > 0)
+            .map((person) => `${person.code}${scores[person.id]}`);
+
+          if (!tokens.length) return "";
+          return `${encodeURIComponent(destination.id)}:${tokens.join(".")}`;
+        })
+        .filter(Boolean)
         .join(",");
     }
 
@@ -1375,18 +1611,27 @@
       return options;
     }
 
+    function rankedCountText() {
+      return people
+        .map((person) => {
+          const count = destinations.filter((destination) => (rankings[destination.id] || {})[person.id] > 0).length;
+          return `${count} ${person.label}`;
+        })
+        .join(" / ");
+    }
+
     function renderTopList(sorted) {
-      const ranked = sorted.filter((destination) => destination.score > 0);
-      rankedCountEl.textContent = `${ranked.length} ranked`;
+      const ranked = sorted.filter((destination) => Number.isFinite(destination.sortScore));
+      rankedCountEl.textContent = rankedCountText();
 
       if (!ranked.length) {
-        topListEl.innerHTML = '<li class="empty-state">No scores yet</li>';
+        topListEl.innerHTML = '<li class="empty-state">No ranks yet</li>';
         return;
       }
 
       topListEl.innerHTML = ranked.slice(0, 6).map((destination) => `
         <li>
-          <span class="top-score">${destination.score}</span>
+          <span class="top-score">${formatScore(destination.sortScore)}</span>
           <span class="top-name">${escapeHtml(destination.name)}</span>
         </li>
       `).join("");
@@ -1400,7 +1645,7 @@
     }
 
     function buildResultsText() {
-      const ranked = sortedDestinations().filter((destination) => destination.score > 0);
+      const ranked = sortedDestinations("combined").filter((destination) => Number.isFinite(destination.sortScore));
       const date = new Date().toLocaleString(undefined, {
         year: "numeric",
         month: "short",
@@ -1411,10 +1656,10 @@
 
       if (!ranked.length) {
         return [
-          "Rome destination rankings",
+          "rome-trip-planner rankings",
           `Generated: ${date}`,
           "",
-          "No destinations have been scored yet.",
+          "No destinations have been ranked yet.",
           "",
           `Planner: ${buildShareUrl()}`
         ].join("\n");
@@ -1422,18 +1667,22 @@
 
       const lines = ranked.map((destination, index) => {
         const rank = String(index + 1).padStart(2, "0");
-        return `${rank}. ${destination.score} - ${destination.name} / ${destination.nameJa} (${destination.area}, ${destination.time})`;
+        const scores = rankings[destination.id] || {};
+        const scoreText = people
+          .map((person) => `${person.label}: ${scores[person.id] || "-"}`)
+          .join(", ");
+        return `${rank}. Combined ${formatScore(destination.sortScore)} - ${destination.name} / ${destination.nameJa} (${scoreText}; ${destination.area}, ${destination.time})`;
       });
 
       return [
-        "Rome destination rankings",
+        "rome-trip-planner rankings",
         `Generated: ${date}`,
         "",
         ...lines,
         "",
         `Open ranked list: ${buildShareUrl()}`,
         "",
-        "Scale: 100 = highest interest, 1 = lowest interest."
+        "Scale: 100 = highest interest, 1 = lowest interest. Combined score averages the assigned ranks; higher scores sort first; blank ranks are ignored and unranked destinations sort last."
       ].join("\n");
     }
 
@@ -1455,25 +1704,45 @@
       if (!copied) throw new Error("Copy command was not available.");
     }
 
-    function renderDestinations(focusedId = null) {
+    function renderDestinations(focusedId = null, focusedPersonId = null) {
       const sorted = sortedDestinations();
       const visible = destinationsForCategory(sorted);
-      renderTopList(sorted);
+      renderTopList(sortedDestinations("combined"));
+      renderSortButtons();
       renderFilterButtons(sorted);
       renderFilterCount(visible.length);
 
       listEl.innerHTML = visible.map((destination) => {
-        const scoreText = destination.score ? destination.score : "-";
-        const ribbonClass = destination.score ? "score-ribbon" : "score-ribbon is-empty";
+        const scores = rankings[destination.id] || {};
+        const scoreText = formatScore(destination.sortScore);
+        const ribbonClass = Number.isFinite(destination.sortScore) ? "score-ribbon" : "score-ribbon is-empty";
         const fallback = destination.name.slice(0, 1);
         const categoryTags = destination.categoryIds.map(categoryLabel);
         const tags = [...categoryTags, destination.area, destination.time, destination.effort, destination.note]
           .map((tag) => `<li>${escapeHtml(tag)}</li>`)
           .join("");
 
+        const rankControls = people.map((person) => `
+          <div class="rank-control">
+            <label for="rank-${escapeHtml(destination.id)}-${escapeHtml(person.id)}">${escapeHtml(person.label)} rank</label>
+            <select
+              class="ranking-select"
+              id="rank-${escapeHtml(destination.id)}-${escapeHtml(person.id)}"
+              data-rank-id="${escapeHtml(destination.id)}"
+              data-person-id="${escapeHtml(person.id)}"
+              aria-label="${escapeHtml(person.label)} rank for ${escapeHtml(destination.name)}, 100 is most preferred"
+            >
+              ${buildOptions(scores[person.id] || 0)}
+            </select>
+          </div>
+        `).join("");
+
         return `
           <article class="destination-card" data-destination="${escapeHtml(destination.id)}">
-            <span class="${ribbonClass}" aria-label="Current interest score">${scoreText}</span>
+            <span class="${ribbonClass}" aria-label="Current score">
+              ${scoreText}
+              <small>${sortMode === "combined" ? "avg" : escapeHtml(personLabels[sortMode] || "rank")}</small>
+            </span>
             <figure class="photo" data-fallback="${escapeHtml(fallback)}">
               <img
                 src="${commonsImageUrl(destination.image)}"
@@ -1491,17 +1760,7 @@
                     <span class="name-ja" lang="ja">${escapeHtml(destination.nameJa)}</span>
                   </h2>
                 </div>
-                <div class="rank-control">
-                  <label for="rank-${escapeHtml(destination.id)}">Interest 100 high</label>
-                  <select
-                    class="ranking-select"
-                    id="rank-${escapeHtml(destination.id)}"
-                    data-rank-id="${escapeHtml(destination.id)}"
-                    aria-label="Interest score for ${escapeHtml(destination.name)}, 100 high"
-                  >
-                    ${buildOptions(destination.score)}
-                  </select>
-                </div>
+                <div class="rank-grid">${rankControls}</div>
               </div>
 
               <ul class="meta" aria-label="Visit notes">${tags}</ul>
@@ -1523,7 +1782,8 @@
       if (focusedId) {
         requestAnimationFrame(() => {
           const card = document.querySelector(`[data-destination="${CSS.escape(focusedId)}"]`);
-          const select = document.querySelector(`[data-rank-id="${CSS.escape(focusedId)}"]`);
+          const selector = `[data-rank-id="${CSS.escape(focusedId)}"][data-person-id="${CSS.escape(focusedPersonId || "")}"]`;
+          const select = document.querySelector(selector);
           if (card) {
             card.classList.add("is-pulse");
             window.setTimeout(() => card.classList.remove("is-pulse"), 460);
@@ -1534,20 +1794,31 @@
     }
 
     listEl.addEventListener("change", (event) => {
-      const select = event.target.closest("[data-rank-id]");
+      const select = event.target.closest("[data-rank-id][data-person-id]");
       if (!select) return;
 
       const id = select.dataset.rankId;
+      const personId = select.dataset.personId;
       const score = Number(select.value);
+      const nextScores = { ...(rankings[id] || {}) };
+
       if (Number.isInteger(score) && score >= 1 && score <= 100) {
-        rankings[id] = score;
+        nextScores[personId] = score;
+        rememberPendingChange(id, personId, "set");
+      } else {
+        delete nextScores[personId];
+        rememberPendingChange(id, personId, "delete");
+      }
+
+      if (Object.keys(nextScores).length) {
+        rankings[id] = nextScores;
       } else {
         delete rankings[id];
       }
 
       saveRankings();
       queueRemoteSave();
-      renderDestinations(id);
+      renderDestinations(id, personId);
     });
 
     filterButtonsEl.addEventListener("click", (event) => {
@@ -1558,12 +1829,20 @@
       renderDestinations();
     });
 
+    sortButtonsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-sort]");
+      if (!button) return;
+
+      sortMode = button.dataset.sort;
+      renderDestinations();
+    });
+
     shareButton.addEventListener("click", async () => {
       const text = buildResultsText();
       try {
         if (navigator.share) {
           await navigator.share({
-            title: "Rome destination rankings",
+            title: "rome-trip-planner rankings",
             text,
             url: buildShareUrl()
           });
@@ -1577,7 +1856,7 @@
           statusMessage("Share cancelled.");
           return;
         }
-        window.location.href = `mailto:?subject=${encodeURIComponent("Rome destination rankings")}&body=${encodeURIComponent(text)}`;
+        window.location.href = `mailto:?subject=${encodeURIComponent("rome-trip-planner rankings")}&body=${encodeURIComponent(text)}`;
       }
     });
 
@@ -1592,14 +1871,16 @@
 
     emailButton.addEventListener("click", () => {
       const text = buildResultsText();
-      window.location.href = `mailto:?subject=${encodeURIComponent("Rome destination rankings")}&body=${encodeURIComponent(text)}`;
+      window.location.href = `mailto:?subject=${encodeURIComponent("rome-trip-planner rankings")}&body=${encodeURIComponent(text)}`;
     });
 
     resetButton.addEventListener("click", () => {
-      const confirmed = window.confirm("Reset all shared Rome scores?");
+      const confirmed = window.confirm(`Reset all shared rome-trip-planner ranks for ${travelerText}?`);
       if (!confirmed) return;
 
       rankings = {};
+      remoteSync.pendingClearAll = true;
+      remoteSync.pendingChanges.clear();
       saveRankings();
       queueRemoteSave();
       renderDestinations();
