@@ -270,7 +270,8 @@
       justify-items: end;
     }
 
-    .sort-buttons {
+    .sort-buttons,
+    .walk-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 7px;
@@ -278,6 +279,7 @@
     }
 
     .sort-button,
+    .walk-button,
     .filter-button {
       min-height: 36px;
       padding: 7px 10px;
@@ -291,11 +293,13 @@
     }
 
     .sort-button:hover,
+    .walk-button:hover,
     .filter-button:hover {
       background: #f7ead8;
     }
 
     .sort-button[aria-pressed="true"],
+    .walk-button[aria-pressed="true"],
     .filter-button[aria-pressed="true"] {
       color: var(--white);
       background: var(--tomato);
@@ -608,7 +612,8 @@
       }
 
       .control-groups,
-      .sort-buttons {
+      .sort-buttons,
+      .walk-buttons {
         justify-items: stretch;
         justify-content: flex-start;
       }
@@ -634,12 +639,14 @@
       }
 
       .sort-buttons,
+      .walk-buttons,
       .filter-buttons {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .sort-button,
+      .walk-button,
       .filter-button {
         width: 100%;
       }
@@ -682,6 +689,7 @@
       .panel-actions,
       .filter-panel,
       .sort-buttons,
+      .walk-buttons,
       .photo-credit {
         display: none;
       }
@@ -721,6 +729,7 @@
       </div>
       <div class="control-groups">
         <div class="sort-buttons" id="sort-buttons" role="group" aria-label="Sort order"></div>
+        <div class="walk-buttons" id="walk-buttons" role="group" aria-label="Walking time from Via del Governo Vecchio 78"></div>
         <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
       </div>
     </section>
@@ -758,6 +767,14 @@
     const sortDefinitions = [
       { id: "combined", label: "Combined" },
       ...people.map((person) => ({ id: person.id, label: person.label }))
+    ];
+
+    const walkDefinitions = [
+      { id: "any", label: "Any walk", minutes: null },
+      { id: "walk-5", label: "≤5 min walk", minutes: 5 },
+      { id: "walk-10", label: "≤10 min walk", minutes: 10 },
+      { id: "walk-15", label: "≤15 min walk", minutes: 15 },
+      { id: "walk-20", label: "≤20 min walk", minutes: 20 }
     ];
 
     const categoryDefinitions = [
@@ -1271,6 +1288,44 @@
       categoryDefinitions.map((category) => [category.id, category.label])
     );
 
+    const walkMinutesFromBase = {
+      "colosseum": 30,
+      "forum": 25,
+      "arch-septimius-severus": 24,
+      "pantheon": 9,
+      "trevi": 18,
+      "vatican-museums": 34,
+      "st-peters": 23,
+      "piazza-navona": 4,
+      "palazzo-braschi": 5,
+      "pasquino": 5,
+      "santagnese-agone": 4,
+      "santa-maria-pace": 3,
+      "chiostro-bramante": 3,
+      "chiesa-nuova": 2,
+      "oratorio-filippini": 1,
+      "museo-barracco": 6,
+      "san-luigi-francesi": 7,
+      "santivo-sapienza": 7,
+      "spanish-steps": 26,
+      "via-margutta": 28,
+      "mouth-of-truth": 25,
+      "borghese": 36,
+      "doria-pamphilj": 15,
+      "trastevere": 18,
+      "castel-santangelo": 13,
+      "palazzo-colonna": 19,
+      "palazzo-barberini": 28,
+      "capitoline": 21,
+      "campo-fiori": 7,
+      "appian-way": 70,
+      "santa-maria-maggiore": 37,
+      "john-lateran": 45,
+      "vittoriano": 20,
+      "janiculum": 23,
+      "popolo": 31
+    };
+
     const personLabels = Object.fromEntries(
       people.map((person) => [person.id, person.label])
     );
@@ -1278,6 +1333,7 @@
     const listEl = document.querySelector("#destination-list");
     const filterButtonsEl = document.querySelector("#filter-buttons");
     const sortButtonsEl = document.querySelector("#sort-buttons");
+    const walkButtonsEl = document.querySelector("#walk-buttons");
     const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
     const rankedCountEl = document.querySelector("#ranked-count");
@@ -1289,6 +1345,7 @@
     const statusLineEl = document.querySelector("#status-line");
 
     let activeCategory = "all";
+    let activeWalkLimit = null;
     let sortMode = "combined";
     let rankings = loadRankings();
     let remoteSync = {
@@ -1668,9 +1725,20 @@
         });
     }
 
-    function destinationsForCategory(sorted, categoryId = activeCategory) {
-      if (categoryId === "all") return sorted;
-      return sorted.filter((destination) => destination.categoryIds.includes(categoryId));
+    function walkMinutesFor(destination) {
+      return walkMinutesFromBase[destination.id] ?? Infinity;
+    }
+
+    function destinationsForWalkLimit(sorted, walkLimit = activeWalkLimit) {
+      if (!Number.isFinite(walkLimit)) return sorted;
+      return sorted.filter((destination) => walkMinutesFor(destination) <= walkLimit);
+    }
+
+    function destinationsForCategory(sorted, categoryId = activeCategory, walkLimit = activeWalkLimit) {
+      const categoryFiltered = categoryId === "all"
+        ? sorted
+        : sorted.filter((destination) => destination.categoryIds.includes(categoryId));
+      return destinationsForWalkLimit(categoryFiltered, walkLimit);
     }
 
     function categoryLabel(categoryId) {
@@ -1681,7 +1749,6 @@
       filterButtonsEl.innerHTML = categoryDefinitions.map((category) => {
         const count = destinationsForCategory(sorted, category.id).length;
         const pressed = category.id === activeCategory ? "true" : "false";
-        const countText = category.id === "all" ? destinations.length : count;
         return `
           <button
             class="filter-button"
@@ -1689,7 +1756,7 @@
             data-category="${escapeHtml(category.id)}"
             aria-pressed="${pressed}"
           >
-            ${escapeHtml(category.label)} ${countText}
+            ${escapeHtml(category.label)} ${count}
           </button>
         `;
       }).join("");
@@ -1697,12 +1764,13 @@
 
     function renderFilterCount(visibleCount) {
       const sortLabel = sortDefinitions.find((definition) => definition.id === sortMode)?.label || "Combined";
+      const walkLabel = Number.isFinite(activeWalkLimit) ? ` within ${activeWalkLimit} min of base` : "";
       if (activeCategory === "all") {
-        filterCountEl.textContent = `Showing all ${visibleCount} destinations - ${sortLabel} sort`;
+        filterCountEl.textContent = `Showing all ${visibleCount} destinations${walkLabel} - ${sortLabel} sort`;
         return;
       }
 
-      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)} - ${sortLabel} sort`;
+      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}${walkLabel} - ${sortLabel} sort`;
     }
 
     function renderSortButtons() {
@@ -1716,6 +1784,23 @@
             aria-pressed="${pressed}"
           >
             ${escapeHtml(sort.label)}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderWalkButtons(sorted) {
+      walkButtonsEl.innerHTML = walkDefinitions.map((definition) => {
+        const count = destinationsForCategory(sorted, activeCategory, definition.minutes).length;
+        const pressed = definition.minutes === activeWalkLimit ? "true" : "false";
+        return `
+          <button
+            class="walk-button"
+            type="button"
+            data-walk="${escapeHtml(definition.id)}"
+            aria-pressed="${pressed}"
+          >
+            ${escapeHtml(definition.label)} ${count}
           </button>
         `;
       }).join("");
@@ -1850,6 +1935,7 @@
       const visible = destinationsForCategory(sorted);
       renderTopList(sortedDestinations("combined"));
       renderSortButtons();
+      renderWalkButtons(sorted);
       renderFilterButtons(sorted);
       renderFilterCount(visible.length);
 
@@ -1975,6 +2061,15 @@
       if (!button) return;
 
       sortMode = button.dataset.sort;
+      renderDestinations();
+    });
+
+    walkButtonsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-walk]");
+      if (!button) return;
+
+      const definition = walkDefinitions.find((item) => item.id === button.dataset.walk);
+      activeWalkLimit = definition?.minutes ?? null;
       renderDestinations();
     });
 
