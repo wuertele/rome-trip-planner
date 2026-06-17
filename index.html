@@ -248,6 +248,7 @@
     }
 
     .sort-buttons,
+    .rank-status-buttons,
     .walk-buttons {
       display: flex;
       flex-wrap: wrap;
@@ -256,6 +257,7 @@
     }
 
     .sort-button,
+    .rank-status-button,
     .walk-button,
     .filter-button {
       min-height: 36px;
@@ -270,12 +272,14 @@
     }
 
     .sort-button:hover,
+    .rank-status-button:hover,
     .walk-button:hover,
     .filter-button:hover {
       background: #f7ead8;
     }
 
     .sort-button[aria-pressed="true"],
+    .rank-status-button[aria-pressed="true"],
     .walk-button[aria-pressed="true"],
     .filter-button[aria-pressed="true"] {
       color: var(--white);
@@ -590,6 +594,7 @@
 
       .control-groups,
       .sort-buttons,
+      .rank-status-buttons,
       .walk-buttons {
         justify-items: stretch;
         justify-content: flex-start;
@@ -612,6 +617,7 @@
       }
 
       .sort-buttons,
+      .rank-status-buttons,
       .walk-buttons,
       .filter-buttons {
         display: grid;
@@ -619,6 +625,7 @@
       }
 
       .sort-button,
+      .rank-status-button,
       .walk-button,
       .filter-button {
         width: 100%;
@@ -661,6 +668,7 @@
 
       .filter-panel,
       .sort-buttons,
+      .rank-status-buttons,
       .walk-buttons,
       .photo-credit {
         display: none;
@@ -694,6 +702,7 @@
       </div>
       <div class="control-groups">
         <div class="sort-buttons" id="sort-buttons" role="group" aria-label="Sort order"></div>
+        <div class="rank-status-buttons" id="rank-status-buttons" role="group" aria-label="Ranking status"></div>
         <div class="walk-buttons" id="walk-buttons" role="group" aria-label="Walking time from Via del Governo Vecchio 78"></div>
         <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
       </div>
@@ -731,6 +740,12 @@
     const sortDefinitions = [
       { id: "combined", label: "Combined" },
       ...people.map((person) => ({ id: person.id, label: person.label }))
+    ];
+
+    const rankStatusDefinitions = [
+      { id: "all", label: "Any status" },
+      { id: "ranked", label: "Ranked" },
+      { id: "unranked", label: "Unranked" }
     ];
 
     const walkDefinitions = [
@@ -1605,6 +1620,7 @@
     const listEl = document.querySelector("#destination-list");
     const filterButtonsEl = document.querySelector("#filter-buttons");
     const sortButtonsEl = document.querySelector("#sort-buttons");
+    const rankStatusButtonsEl = document.querySelector("#rank-status-buttons");
     const walkButtonsEl = document.querySelector("#walk-buttons");
     const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
@@ -1614,6 +1630,7 @@
     let activeCategory = "all";
     let activeWalkLimit = null;
     let sortMode = "combined";
+    let rankStatusMode = "all";
     let rankings = loadRankings();
     let remoteSync = {
       lastSignature: "",
@@ -1981,6 +1998,20 @@
       return scoreIsAssigned((rankings[destination.id] || {})[personId]);
     }
 
+    function isRankedInScope(destination, mode = sortMode) {
+      if (isPersonSortMode(mode)) return isRankedByPerson(destination, mode);
+      return rankedCountFor(destination) > 0;
+    }
+
+    function destinationMatchesRankStatus(destination, mode = sortMode, status = rankStatusMode) {
+      if (status === "all") return true;
+
+      const isRanked = isRankedInScope(destination, mode);
+      if (status === "ranked") return isRanked;
+      if (status === "unranked") return !isRanked;
+      return true;
+    }
+
     function formatScore(score) {
       if (!Number.isFinite(score)) return "-";
       return Number.isInteger(score) ? String(score) : score.toFixed(1);
@@ -1991,9 +2022,9 @@
       return people.filter((person) => scoreIsAssigned(scores[person.id])).length;
     }
 
-    function sortedDestinations(mode = sortMode) {
+    function sortedDestinations(mode = sortMode, status = rankStatusMode) {
       return destinations
-        .filter((destination) => !isPersonSortMode(mode) || isRankedByPerson(destination, mode))
+        .filter((destination) => destinationMatchesRankStatus(destination, mode, status))
         .map((destination, index) => ({
           ...destination,
           order: index,
@@ -2051,13 +2082,19 @@
     function renderFilterCount(visibleCount) {
       const sortLabel = sortDefinitions.find((definition) => definition.id === sortMode)?.label || "Combined";
       const walkLabel = Number.isFinite(activeWalkLimit) ? ` within ${activeWalkLimit} min of base` : "";
-      const personLabel = isPersonSortMode() ? ` ranked by ${sortLabel}` : "";
+      const rankStatusLabel = rankStatusDefinitions.find((definition) => definition.id === rankStatusMode)?.label || "Any status";
+      const rankScopeLabel = isPersonSortMode() ? sortLabel : "anyone";
+      const rankLabel = rankStatusMode === "ranked"
+        ? ` ranked by ${rankScopeLabel}`
+        : rankStatusMode === "unranked"
+          ? ` not ranked by ${rankScopeLabel}`
+          : "";
       if (activeCategory === "all") {
-        filterCountEl.textContent = `Showing all ${visibleCount} destinations${personLabel}${walkLabel} - ${sortLabel} sort`;
+        filterCountEl.textContent = `Showing all ${visibleCount} destinations${rankLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}`;
         return;
       }
 
-      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}${personLabel}${walkLabel} - ${sortLabel} sort`;
+      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}${rankLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}`;
     }
 
     function renderSortButtons() {
@@ -2071,6 +2108,24 @@
             aria-pressed="${pressed}"
           >
             ${escapeHtml(sort.label)}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderRankStatusButtons() {
+      rankStatusButtonsEl.innerHTML = rankStatusDefinitions.map((status) => {
+        const sorted = sortedDestinations(sortMode, status.id);
+        const count = destinationsForCategory(sorted).length;
+        const pressed = status.id === rankStatusMode ? "true" : "false";
+        return `
+          <button
+            class="rank-status-button"
+            type="button"
+            data-rank-status="${escapeHtml(status.id)}"
+            aria-pressed="${pressed}"
+          >
+            ${escapeHtml(status.label)} ${count}
           </button>
         `;
       }).join("");
@@ -2105,7 +2160,7 @@
     function rankedCountText() {
       return people
         .map((person) => {
-          const count = destinations.filter((destination) => (rankings[destination.id] || {})[person.id] > 0).length;
+          const count = destinations.filter((destination) => scoreIsAssigned((rankings[destination.id] || {})[person.id])).length;
           return `${count} ${person.label}`;
         })
         .join(" / ");
@@ -2138,8 +2193,9 @@
     function renderDestinations(focusedId = null, focusedPersonId = null) {
       const sorted = sortedDestinations();
       const visible = destinationsForCategory(sorted);
-      renderTopList(sortedDestinations("combined"));
+      renderTopList(sortedDestinations("combined", "all"));
       renderSortButtons();
+      renderRankStatusButtons();
       renderWalkButtons(sorted);
       renderFilterButtons(sorted);
       renderFilterCount(visible.length);
@@ -2274,6 +2330,14 @@
       if (!button) return;
 
       sortMode = button.dataset.sort;
+      renderDestinations();
+    });
+
+    rankStatusButtonsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rank-status]");
+      if (!button) return;
+
+      rankStatusMode = button.dataset.rankStatus;
       renderDestinations();
     });
 
