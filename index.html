@@ -1779,9 +1779,10 @@
 
       const assignedScores = people
         .map((person) => scores[person.id])
-        .filter((score) => Number.isInteger(score));
+        .filter((score) => Number.isInteger(score) && score >= 1 && score <= 100);
 
-      if (!assignedScores.length) return null;
+      if (!assignedScores.length) return 0;
+      if (assignedScores.length === 1) return (assignedScores[0] + 50 + 50) / people.length;
 
       const total = assignedScores.reduce((sum, score) => sum + score, 0);
       return total / assignedScores.length;
@@ -1916,7 +1917,7 @@
     }
 
     function renderTopList(sorted) {
-      const ranked = sorted.filter((destination) => Number.isFinite(destination.sortScore));
+      const ranked = sorted.filter((destination) => destination.rankedCount > 0);
       rankedCountEl.textContent = rankedCountText();
 
       if (!ranked.length) {
@@ -1950,8 +1951,11 @@
 
       listEl.innerHTML = visible.map((destination) => {
         const scores = rankings[destination.id] || {};
-        const scoreText = formatScore(destination.sortScore);
-        const ribbonClass = Number.isFinite(destination.sortScore) ? "score-ribbon" : "score-ribbon is-empty";
+        const hasDisplayScore = sortMode === "combined"
+          ? destination.rankedCount > 0
+          : Number.isFinite(destination.sortScore);
+        const scoreText = hasDisplayScore ? formatScore(destination.sortScore) : "-";
+        const ribbonClass = hasDisplayScore ? "score-ribbon" : "score-ribbon is-empty";
         const fallback = destination.name.slice(0, 1);
         const categoryTags = destination.categoryIds.map(categoryLabel);
         const tags = [...categoryTags, destination.area, destination.time, destination.effort, destination.note]
