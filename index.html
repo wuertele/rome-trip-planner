@@ -249,6 +249,7 @@
 
     .sort-buttons,
     .rank-status-buttons,
+    .schedule-filter-buttons,
     .walk-buttons {
       display: flex;
       flex-wrap: wrap;
@@ -258,6 +259,7 @@
 
     .sort-button,
     .rank-status-button,
+    .schedule-filter-button,
     .walk-button,
     .filter-button {
       min-height: 36px;
@@ -273,6 +275,7 @@
 
     .sort-button:hover,
     .rank-status-button:hover,
+    .schedule-filter-button:hover,
     .walk-button:hover,
     .filter-button:hover {
       background: #f7ead8;
@@ -280,6 +283,7 @@
 
     .sort-button[aria-pressed="true"],
     .rank-status-button[aria-pressed="true"],
+    .schedule-filter-button[aria-pressed="true"],
     .walk-button[aria-pressed="true"],
     .filter-button[aria-pressed="true"] {
       color: var(--white);
@@ -465,6 +469,70 @@
       outline-offset: 2px;
     }
 
+    .schedule-widget {
+      display: grid;
+      grid-template-columns: minmax(84px, max-content) minmax(118px, 150px) minmax(112px, 140px) minmax(104px, max-content);
+      gap: 8px;
+      align-items: end;
+      padding: 10px;
+      background: #f8f2e7;
+      border: 1px solid rgba(212, 198, 173, 0.82);
+      border-radius: 8px;
+    }
+
+    .schedule-title {
+      align-self: center;
+      color: var(--cypress);
+      font-size: 0.76rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .schedule-control {
+      display: grid;
+      gap: 5px;
+    }
+
+    .schedule-control label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .schedule-select {
+      width: 100%;
+      min-height: 38px;
+      padding: 7px 30px 7px 9px;
+      color: var(--ink);
+      background: var(--paper-strong);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .schedule-select:focus {
+      outline: 3px solid rgba(37, 59, 115, 0.24);
+      outline-offset: 2px;
+    }
+
+    .schedule-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 7px 10px;
+      color: var(--blue);
+      background: #eef3fb;
+      border: 1px solid rgba(37, 59, 115, 0.13);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-align: center;
+      white-space: nowrap;
+    }
+
     .meta {
       display: flex;
       flex-wrap: wrap;
@@ -595,8 +663,18 @@
       .control-groups,
       .sort-buttons,
       .rank-status-buttons,
+      .schedule-filter-buttons,
       .walk-buttons {
         justify-items: stretch;
+        justify-content: flex-start;
+      }
+
+      .schedule-widget {
+        grid-template-columns: minmax(0, 1fr) repeat(2, minmax(112px, 150px));
+      }
+
+      .schedule-chip {
+        grid-column: 1 / -1;
         justify-content: flex-start;
       }
 
@@ -618,6 +696,7 @@
 
       .sort-buttons,
       .rank-status-buttons,
+      .schedule-filter-buttons,
       .walk-buttons,
       .filter-buttons {
         display: grid;
@@ -626,9 +705,14 @@
 
       .sort-button,
       .rank-status-button,
+      .schedule-filter-button,
       .walk-button,
       .filter-button {
         width: 100%;
+      }
+
+      .schedule-widget {
+        grid-template-columns: 1fr;
       }
 
       h1 {
@@ -669,6 +753,7 @@
       .filter-panel,
       .sort-buttons,
       .rank-status-buttons,
+      .schedule-filter-buttons,
       .walk-buttons,
       .photo-credit {
         display: none;
@@ -703,6 +788,7 @@
       <div class="control-groups">
         <div class="sort-buttons" id="sort-buttons" role="group" aria-label="Sort order"></div>
         <div class="rank-status-buttons" id="rank-status-buttons" role="group" aria-label="Ranking status"></div>
+        <div class="schedule-filter-buttons" id="schedule-filter-buttons" role="group" aria-label="Schedule day"></div>
         <div class="walk-buttons" id="walk-buttons" role="group" aria-label="Walking time from Via del Governo Vecchio 78"></div>
         <div class="filter-buttons" id="filter-buttons" role="group" aria-label="Destination categories"></div>
       </div>
@@ -722,11 +808,13 @@
 
   <script>
     const STORAGE_KEY = "rome-trip-rankings-v1";
+    const SCHEDULE_STORAGE_KEY = "rome-trip-schedule-v1";
     const HASH_PREFIX = "rome-scores=";
     const SUPABASE_URL = "https://hxntvwioltnctdoegefw.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_mnCZ7xzGXky1G6gvFYp1BQ_fKL5OvH-";
     const SUPABASE_TABLE = "trip_rankings";
     const SUPABASE_TRIP_ID = "rome-trip-planner";
+    const SCHEDULE_REMOTE_KEY = "__schedule";
     const SYNC_POLL_MS = 15000;
 
     const people = [
@@ -746,6 +834,19 @@
       { id: "all", label: "Any status" },
       { id: "ranked", label: "Ranked" },
       { id: "unranked", label: "Unranked" }
+    ];
+
+    const scheduleDayDefinitions = [
+      { id: "wednesday", label: "Wednesday" },
+      { id: "thursday", label: "Thursday" },
+      { id: "friday", label: "Friday" },
+      { id: "saturday", label: "Saturday" }
+    ];
+
+    const scheduleFilterDefinitions = [
+      { id: "any", label: "Any day" },
+      ...scheduleDayDefinitions,
+      { id: "unscheduled", label: "Unscheduled" }
     ];
 
     const walkDefinitions = [
@@ -1702,6 +1803,7 @@
     const filterButtonsEl = document.querySelector("#filter-buttons");
     const sortButtonsEl = document.querySelector("#sort-buttons");
     const rankStatusButtonsEl = document.querySelector("#rank-status-buttons");
+    const scheduleFilterButtonsEl = document.querySelector("#schedule-filter-buttons");
     const walkButtonsEl = document.querySelector("#walk-buttons");
     const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
@@ -1712,7 +1814,9 @@
     let activeWalkLimit = null;
     let sortMode = "combined";
     let rankStatusMode = "all";
+    let scheduleFilterMode = "any";
     let rankings = loadRankings();
+    let schedules = loadSchedules();
     let remoteSync = {
       lastSignature: "",
       saveTimer: null,
@@ -1721,7 +1825,15 @@
       pendingChanges: new Map(),
       pendingClearAll: false
     };
+    let scheduleRemoteSync = {
+      lastSignature: "",
+      saveTimer: null,
+      isSaving: false,
+      isPolling: false,
+      pendingChanges: new Map()
+    };
     saveRankings();
+    saveSchedules();
 
     function loadRankings() {
       const hashRankings = parseRankingsFromHash();
@@ -1807,6 +1919,73 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(rankings));
     }
 
+    function loadSchedules() {
+      try {
+        const raw = localStorage.getItem(SCHEDULE_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return sanitizeSchedules(parsed);
+      } catch {
+        return {};
+      }
+    }
+
+    function isScheduleDay(day) {
+      return scheduleDayDefinitions.some((definition) => definition.id === day);
+    }
+
+    function isScheduleHour(hour) {
+      return Number.isInteger(hour) && hour >= 0 && hour <= 23;
+    }
+
+    function sanitizeSchedules(value) {
+      const validIds = new Set(destinations.map((destination) => destination.id));
+      const clean = {};
+
+      Object.entries(value || {}).forEach(([id, schedule]) => {
+        if (!validIds.has(id) || typeof schedule !== "object" || !schedule) return;
+
+        if (!isScheduleDay(schedule.day)) return;
+
+        const cleanSchedule = { day: schedule.day };
+        const hour = Number(schedule.hour);
+        if (isScheduleHour(hour)) cleanSchedule.hour = hour;
+
+        clean[id] = cleanSchedule;
+      });
+
+      return clean;
+    }
+
+    function saveSchedules() {
+      localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedules));
+    }
+
+    function canonicalSchedules(value) {
+      const clean = sanitizeSchedules(value);
+      const canonical = {};
+
+      destinations.forEach((destination) => {
+        const schedule = clean[destination.id];
+        if (!schedule) return;
+
+        if (!isScheduleDay(schedule.day)) return;
+
+        const cleanSchedule = { day: schedule.day };
+        if (isScheduleHour(schedule.hour)) cleanSchedule.hour = schedule.hour;
+        canonical[destination.id] = cleanSchedule;
+      });
+
+      return canonical;
+    }
+
+    function hasSchedules(value) {
+      return Object.values(canonicalSchedules(value)).some((schedule) => isScheduleDay(schedule.day));
+    }
+
+    function schedulesSignature(value) {
+      return JSON.stringify(canonicalSchedules(value));
+    }
+
     function canonicalRankings(value) {
       const clean = sanitizeRankings(value);
       const canonical = {};
@@ -1883,6 +2062,42 @@
       return sanitizeRankings(merged);
     }
 
+    function mergeSchedules(remoteSchedules, localSchedules) {
+      const merged = canonicalSchedules(remoteSchedules);
+      const local = canonicalSchedules(localSchedules);
+
+      Object.entries(local).forEach(([destinationId, schedule]) => {
+        if (!merged[destinationId]) merged[destinationId] = schedule;
+      });
+
+      return sanitizeSchedules(merged);
+    }
+
+    function rememberPendingScheduleChange(destinationId, action) {
+      scheduleRemoteSync.pendingChanges.set(destinationId, {
+        destinationId,
+        action
+      });
+    }
+
+    function applyPendingScheduleChanges(baseSchedules, localSchedules) {
+      const merged = canonicalSchedules(baseSchedules);
+      const local = canonicalSchedules(localSchedules);
+
+      scheduleRemoteSync.pendingChanges.forEach(({ destinationId, action }) => {
+        if (action === "delete") {
+          delete merged[destinationId];
+          return;
+        }
+
+        const schedule = local[destinationId];
+        if (!schedule) return;
+        merged[destinationId] = schedule;
+      });
+
+      return sanitizeSchedules(merged);
+    }
+
     function remoteSyncConfigured() {
       return Boolean(
         SUPABASE_URL &&
@@ -1899,7 +2114,14 @@
       };
     }
 
-    async function fetchRemoteRankings() {
+    function buildRemotePayload(rankingsValue, schedulesValue) {
+      const payload = canonicalRankings(rankingsValue);
+      const cleanSchedules = canonicalSchedules(schedulesValue);
+      if (Object.keys(cleanSchedules).length) payload[SCHEDULE_REMOTE_KEY] = cleanSchedules;
+      return payload;
+    }
+
+    async function fetchRemotePayload() {
       const query = new URLSearchParams({
         "trip_id": `eq.${SUPABASE_TRIP_ID}`,
         "select": "rankings,updated_at",
@@ -1914,7 +2136,11 @@
       }
 
       const rows = await response.json();
-      return sanitizeRankings(rows[0]?.rankings || {});
+      return rows[0]?.rankings || {};
+    }
+
+    async function fetchRemoteRankings() {
+      return sanitizeRankings(await fetchRemotePayload());
     }
 
     async function saveRemoteRankings() {
@@ -1923,11 +2149,14 @@
       remoteSync.isSaving = true;
       try {
         const localRankings = canonicalRankings(rankings);
-        const remoteRankings = remoteSync.pendingClearAll ? {} : await fetchRemoteRankings();
+        const remotePayload = await fetchRemotePayload();
+        const remoteRankings = remoteSync.pendingClearAll ? {} : sanitizeRankings(remotePayload);
+        const remoteSchedules = sanitizeSchedules(remotePayload[SCHEDULE_REMOTE_KEY] || {});
         const mergedRankings = remoteSync.pendingClearAll
           ? {}
           : applyPendingChanges(mergeRankings(remoteRankings, localRankings), localRankings);
         const clean = canonicalRankings(mergedRankings);
+        const payload = buildRemotePayload(clean, remoteSchedules);
         const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
           method: "POST",
           headers: supabaseHeaders({
@@ -1936,7 +2165,7 @@
           }),
           body: JSON.stringify({
             trip_id: SUPABASE_TRIP_ID,
-            rankings: clean
+            rankings: payload
           })
         });
 
@@ -2030,6 +2259,124 @@
       }
     }
 
+    async function fetchRemoteSchedules() {
+      const remotePayload = await fetchRemotePayload();
+      return sanitizeSchedules(remotePayload[SCHEDULE_REMOTE_KEY] || {});
+    }
+
+    async function saveRemoteSchedules() {
+      if (!remoteSyncConfigured()) return;
+
+      scheduleRemoteSync.isSaving = true;
+      try {
+        const localSchedules = canonicalSchedules(schedules);
+        const remotePayload = await fetchRemotePayload();
+        const remoteRankings = sanitizeRankings(remotePayload);
+        const remoteSchedules = sanitizeSchedules(remotePayload[SCHEDULE_REMOTE_KEY] || {});
+        const mergedSchedules = applyPendingScheduleChanges(mergeSchedules(remoteSchedules, localSchedules), localSchedules);
+        const clean = canonicalSchedules(mergedSchedules);
+        const payload = buildRemotePayload(remoteRankings, clean);
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+          method: "POST",
+          headers: supabaseHeaders({
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal"
+          }),
+          body: JSON.stringify({
+            trip_id: SUPABASE_TRIP_ID,
+            rankings: payload
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Remote schedule save failed: ${response.status}`);
+        }
+
+        if (schedulesSignature(clean) !== schedulesSignature(schedules)) {
+          schedules = clean;
+          saveSchedules();
+          renderDestinations();
+        }
+
+        scheduleRemoteSync.lastSignature = schedulesSignature(clean);
+        scheduleRemoteSync.pendingChanges.clear();
+        statusMessage("Saved shared schedule.");
+      } catch (error) {
+        console.error(error);
+        statusMessage("Shared schedule save failed; this browser still saved the schedule.");
+      } finally {
+        scheduleRemoteSync.isSaving = false;
+      }
+    }
+
+    function queueScheduleRemoteSave() {
+      if (!remoteSyncConfigured()) return;
+
+      window.clearTimeout(scheduleRemoteSync.saveTimer);
+      scheduleRemoteSync.saveTimer = window.setTimeout(() => {
+        saveRemoteSchedules();
+      }, 650);
+    }
+
+    async function pollRemoteSchedules() {
+      if (!remoteSyncConfigured() || scheduleRemoteSync.isSaving || scheduleRemoteSync.isPolling) return;
+
+      scheduleRemoteSync.isPolling = true;
+      try {
+        const remoteSchedules = await fetchRemoteSchedules();
+        const remoteSignature = schedulesSignature(remoteSchedules);
+        const localSignature = schedulesSignature(schedules);
+        const mergedSchedules = applyPendingScheduleChanges(mergeSchedules(remoteSchedules, schedules), schedules);
+        const mergedSignature = schedulesSignature(mergedSchedules);
+
+        if (remoteSignature && remoteSignature !== localSignature) {
+          if (mergedSignature !== localSignature) {
+            schedules = mergedSchedules;
+            saveSchedules();
+            renderDestinations();
+          }
+          scheduleRemoteSync.lastSignature = remoteSignature;
+          if (mergedSignature !== remoteSignature) queueScheduleRemoteSave();
+          statusMessage("Merged shared schedule updates.");
+        } else {
+          scheduleRemoteSync.lastSignature = remoteSignature;
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        scheduleRemoteSync.isPolling = false;
+      }
+    }
+
+    async function initializeScheduleRemoteSync() {
+      if (!remoteSyncConfigured()) return;
+
+      try {
+        const localSchedules = canonicalSchedules(schedules);
+        const remoteSchedules = await fetchRemoteSchedules();
+        const mergedSchedules = mergeSchedules(remoteSchedules, localSchedules);
+
+        if (schedulesSignature(mergedSchedules) !== schedulesSignature(schedules)) {
+          schedules = mergedSchedules;
+          saveSchedules();
+          renderDestinations();
+        }
+
+        scheduleRemoteSync.lastSignature = schedulesSignature(remoteSchedules);
+
+        if (schedulesSignature(mergedSchedules) !== scheduleRemoteSync.lastSignature) {
+          await saveRemoteSchedules();
+        } else if (hasSchedules(mergedSchedules)) {
+          statusMessage("Loaded shared schedule.");
+        }
+
+        window.setInterval(pollRemoteSchedules, SYNC_POLL_MS);
+      } catch (error) {
+        console.error(error);
+        statusMessage("Shared schedule sync is not ready; using this browser's saved schedule.");
+      }
+    }
+
     function escapeHtml(value) {
       return String(value)
         .replaceAll("&", "&amp;")
@@ -2079,6 +2426,37 @@
       return scoreIsAssigned((rankings[destination.id] || {})[personId]);
     }
 
+    function scheduleFor(destination) {
+      return schedules[destination.id] || {};
+    }
+
+    function scheduleDayLabel(day) {
+      return scheduleDayDefinitions.find((definition) => definition.id === day)?.label || "";
+    }
+
+    function formatScheduleHour(hour) {
+      if (!isScheduleHour(hour)) return "";
+      if (hour === 0) return "12 AM";
+      if (hour < 12) return `${hour} AM`;
+      if (hour === 12) return "12 PM";
+      return `${hour - 12} PM`;
+    }
+
+    function scheduleSummary(schedule) {
+      const day = scheduleDayLabel(schedule.day);
+      const hour = formatScheduleHour(schedule.hour);
+      if (day && hour) return `${day} ${hour}`;
+      if (day) return day;
+      return "Unscheduled";
+    }
+
+    function destinationMatchesScheduleFilter(destination, filter = scheduleFilterMode) {
+      const schedule = scheduleFor(destination);
+      if (filter === "any") return true;
+      if (filter === "unscheduled") return !isScheduleDay(schedule.day);
+      return schedule.day === filter;
+    }
+
     function isRankedInScope(destination, mode = sortMode) {
       if (isPersonSortMode(mode)) return isRankedByPerson(destination, mode);
       return rankedCountFor(destination) > 0;
@@ -2103,9 +2481,10 @@
       return people.filter((person) => scoreIsAssigned(scores[person.id])).length;
     }
 
-    function sortedDestinations(mode = sortMode, status = rankStatusMode) {
+    function sortedDestinations(mode = sortMode, status = rankStatusMode, scheduleFilter = scheduleFilterMode) {
       return destinations
         .filter((destination) => destinationMatchesRankStatus(destination, mode, status))
+        .filter((destination) => destinationMatchesScheduleFilter(destination, scheduleFilter))
         .map((destination, index) => ({
           ...destination,
           order: index,
@@ -2164,18 +2543,24 @@
       const sortLabel = sortDefinitions.find((definition) => definition.id === sortMode)?.label || "Combined";
       const walkLabel = Number.isFinite(activeWalkLimit) ? ` within ${activeWalkLimit} min of base` : "";
       const rankStatusLabel = rankStatusDefinitions.find((definition) => definition.id === rankStatusMode)?.label || "Any status";
+      const scheduleFilterLabel = scheduleFilterDefinitions.find((definition) => definition.id === scheduleFilterMode)?.label || "Any day";
       const rankScopeLabel = isPersonSortMode() ? sortLabel : "anyone";
       const rankLabel = rankStatusMode === "ranked"
         ? ` ranked by ${rankScopeLabel}`
         : rankStatusMode === "unranked"
           ? ` not ranked by ${rankScopeLabel}`
           : "";
+      const scheduleLabel = scheduleFilterMode === "unscheduled"
+        ? " unscheduled"
+        : isScheduleDay(scheduleFilterMode)
+          ? ` scheduled for ${scheduleFilterLabel}`
+          : "";
       if (activeCategory === "all") {
-        filterCountEl.textContent = `Showing all ${visibleCount} destinations${rankLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}`;
+        filterCountEl.textContent = `Showing all ${visibleCount} destinations${rankLabel}${scheduleLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}, ${scheduleFilterLabel}`;
         return;
       }
 
-      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}${rankLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}`;
+      filterCountEl.textContent = `Showing ${visibleCount} destinations in ${categoryLabel(activeCategory)}${rankLabel}${scheduleLabel}${walkLabel} - ${sortLabel} sort, ${rankStatusLabel}, ${scheduleFilterLabel}`;
     }
 
     function renderSortButtons() {
@@ -2196,7 +2581,7 @@
 
     function renderRankStatusButtons() {
       rankStatusButtonsEl.innerHTML = rankStatusDefinitions.map((status) => {
-        const sorted = sortedDestinations(sortMode, status.id);
+        const sorted = sortedDestinations(sortMode, status.id, scheduleFilterMode);
         const count = destinationsForCategory(sorted).length;
         const pressed = status.id === rankStatusMode ? "true" : "false";
         return `
@@ -2207,6 +2592,24 @@
             aria-pressed="${pressed}"
           >
             ${escapeHtml(status.label)} ${count}
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderScheduleFilterButtons() {
+      scheduleFilterButtonsEl.innerHTML = scheduleFilterDefinitions.map((filter) => {
+        const sorted = sortedDestinations(sortMode, rankStatusMode, filter.id);
+        const count = destinationsForCategory(sorted).length;
+        const pressed = filter.id === scheduleFilterMode ? "true" : "false";
+        return `
+          <button
+            class="schedule-filter-button"
+            type="button"
+            data-schedule-filter="${escapeHtml(filter.id)}"
+            aria-pressed="${pressed}"
+          >
+            ${escapeHtml(filter.label)} ${count}
           </button>
         `;
       }).join("");
@@ -2234,6 +2637,24 @@
       for (let score = 100; score >= 1; score -= 1) {
         const selected = score === selectedScore ? " selected" : "";
         options += `<option value="${score}"${selected}>${score}</option>`;
+      }
+      return options;
+    }
+
+    function buildScheduleDayOptions(selectedDay) {
+      let options = '<option value="">Unscheduled</option>';
+      scheduleDayDefinitions.forEach((day) => {
+        const selected = day.id === selectedDay ? " selected" : "";
+        options += `<option value="${escapeHtml(day.id)}"${selected}>${escapeHtml(day.label)}</option>`;
+      });
+      return options;
+    }
+
+    function buildScheduleHourOptions(selectedHour) {
+      let options = '<option value="">Time</option>';
+      for (let hour = 0; hour <= 23; hour += 1) {
+        const selected = hour === selectedHour ? " selected" : "";
+        options += `<option value="${hour}"${selected}>${formatScheduleHour(hour)}</option>`;
       }
       return options;
     }
@@ -2271,18 +2692,22 @@
       }, 4200);
     }
 
-    function renderDestinations(focusedId = null, focusedPersonId = null) {
+    function renderDestinations(focusedId = null, focusedPersonId = null, focusedScheduleField = null) {
       const sorted = sortedDestinations();
       const visible = destinationsForCategory(sorted);
-      renderTopList(sortedDestinations("combined", "all"));
+      renderTopList(sortedDestinations("combined", "all", "any"));
       renderSortButtons();
       renderRankStatusButtons();
+      renderScheduleFilterButtons();
       renderWalkButtons(sorted);
       renderFilterButtons(sorted);
       renderFilterCount(visible.length);
 
       listEl.innerHTML = visible.map((destination) => {
         const scores = rankings[destination.id] || {};
+        const schedule = scheduleFor(destination);
+        const selectedDay = isScheduleDay(schedule.day) ? schedule.day : "";
+        const selectedHour = isScheduleHour(schedule.hour) ? schedule.hour : null;
         const hasDisplayScore = sortMode === "combined"
           ? destination.rankedCount > 0
           : Number.isFinite(destination.sortScore);
@@ -2338,6 +2763,35 @@
                 <div class="rank-grid">${rankControls}</div>
               </div>
 
+              <div class="schedule-widget">
+                <span class="schedule-title">Schedule</span>
+                <div class="schedule-control">
+                  <label for="schedule-day-${escapeHtml(destination.id)}">Day</label>
+                  <select
+                    class="schedule-select"
+                    id="schedule-day-${escapeHtml(destination.id)}"
+                    data-schedule-id="${escapeHtml(destination.id)}"
+                    data-schedule-field="day"
+                    aria-label="Schedule day for ${escapeHtml(destination.name)}"
+                  >
+                    ${buildScheduleDayOptions(selectedDay)}
+                  </select>
+                </div>
+                <div class="schedule-control">
+                  <label for="schedule-hour-${escapeHtml(destination.id)}">Time</label>
+                  <select
+                    class="schedule-select"
+                    id="schedule-hour-${escapeHtml(destination.id)}"
+                    data-schedule-id="${escapeHtml(destination.id)}"
+                    data-schedule-field="hour"
+                    aria-label="Schedule time for ${escapeHtml(destination.name)}"
+                  >
+                    ${buildScheduleHourOptions(selectedHour)}
+                  </select>
+                </div>
+                <span class="schedule-chip">${escapeHtml(scheduleSummary(schedule))}</span>
+              </div>
+
               <ul class="meta" aria-label="Visit notes">${tags}</ul>
 
               <div class="copy">
@@ -2359,7 +2813,9 @@
       if (focusedId) {
         requestAnimationFrame(() => {
           const card = document.querySelector(`[data-destination="${CSS.escape(focusedId)}"]`);
-          const selector = `[data-rank-id="${CSS.escape(focusedId)}"][data-person-id="${CSS.escape(focusedPersonId || "")}"]`;
+          const selector = focusedScheduleField
+            ? `[data-schedule-id="${CSS.escape(focusedId)}"][data-schedule-field="${CSS.escape(focusedScheduleField)}"]`
+            : `[data-rank-id="${CSS.escape(focusedId)}"][data-person-id="${CSS.escape(focusedPersonId || "")}"]`;
           const select = document.querySelector(selector);
           if (card) {
             card.classList.add("is-pulse");
@@ -2372,7 +2828,48 @@
 
     listEl.addEventListener("change", (event) => {
       const select = event.target.closest("[data-rank-id][data-person-id]");
-      if (!select) return;
+      if (!select) {
+        const scheduleSelect = event.target.closest("[data-schedule-id][data-schedule-field]");
+        if (!scheduleSelect) return;
+
+        const id = scheduleSelect.dataset.scheduleId;
+        const field = scheduleSelect.dataset.scheduleField;
+        const nextSchedule = { ...(schedules[id] || {}) };
+
+        if (field === "day") {
+          const day = scheduleSelect.value;
+          if (isScheduleDay(day)) {
+            nextSchedule.day = day;
+          } else {
+            delete schedules[id];
+            rememberPendingScheduleChange(id, "delete");
+            saveSchedules();
+            queueScheduleRemoteSave();
+            renderDestinations(id, null, field);
+            return;
+          }
+        } else if (field === "hour") {
+          const hour = Number(scheduleSelect.value);
+          if (isScheduleDay(nextSchedule.day) && isScheduleHour(hour)) {
+            nextSchedule.hour = hour;
+          } else {
+            delete nextSchedule.hour;
+          }
+        }
+
+        if (Object.keys(nextSchedule).length) {
+          schedules[id] = nextSchedule;
+          rememberPendingScheduleChange(id, "set");
+        } else {
+          delete schedules[id];
+          rememberPendingScheduleChange(id, "delete");
+        }
+
+        saveSchedules();
+        queueScheduleRemoteSave();
+        renderDestinations(id, null, field);
+        return;
+      }
 
       const id = select.dataset.rankId;
       const personId = select.dataset.personId;
@@ -2422,6 +2919,14 @@
       renderDestinations();
     });
 
+    scheduleFilterButtonsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-schedule-filter]");
+      if (!button) return;
+
+      scheduleFilterMode = button.dataset.scheduleFilter;
+      renderDestinations();
+    });
+
     walkButtonsEl.addEventListener("click", (event) => {
       const button = event.target.closest("[data-walk]");
       if (!button) return;
@@ -2433,6 +2938,7 @@
 
     renderDestinations();
     initializeRemoteSync();
+    initializeScheduleRemoteSync();
   </script>
 </body>
 </html>
