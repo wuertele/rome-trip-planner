@@ -198,29 +198,6 @@
       font-weight: 700;
     }
 
-    .panel-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: auto;
-    }
-
-    .action-button {
-      flex: 1 1 112px;
-      min-height: 42px;
-      padding: 9px 12px;
-      color: var(--cypress);
-      background: var(--sky);
-      border: 1px solid rgba(24, 63, 54, 0.2);
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 800;
-    }
-
-    .action-button:hover {
-      background: #cde3e9;
-    }
-
     .status-line {
       min-height: 20px;
       margin: -6px 0 0;
@@ -634,10 +611,6 @@
         align-items: center;
       }
 
-      .panel-actions {
-        flex-direction: column;
-      }
-
       .sort-buttons,
       .walk-buttons,
       .filter-buttons {
@@ -686,7 +659,6 @@
         color: var(--muted);
       }
 
-      .panel-actions,
       .filter-panel,
       .sort-buttons,
       .walk-buttons,
@@ -711,13 +683,6 @@
           <span class="count-pill" id="ranked-count">0 Dave / 0 Tomoko / 0 Kentaro</span>
         </div>
         <ol class="top-list" id="top-list"></ol>
-        <div class="panel-actions">
-          <button class="action-button" id="share-results" type="button">Share results</button>
-          <button class="action-button" id="copy-results" type="button">Copy results</button>
-          <button class="action-button" id="email-results" type="button">Email results</button>
-          <button class="action-button" id="reset-ranks" type="button">Reset ranks</button>
-          <button class="action-button" id="print-page" type="button">Print</button>
-        </div>
         <p class="status-line" id="status-line" aria-live="polite"></p>
       </aside>
     </header>
@@ -762,7 +727,6 @@
     ];
 
     const codeToPerson = Object.fromEntries(people.map((person) => [person.code, person.id]));
-    const travelerText = people.map((person) => person.label).join(", ");
 
     const sortDefinitions = [
       { id: "combined", label: "Combined" },
@@ -1469,11 +1433,6 @@
     const filterCountEl = document.querySelector("#filter-count");
     const topListEl = document.querySelector("#top-list");
     const rankedCountEl = document.querySelector("#ranked-count");
-    const shareButton = document.querySelector("#share-results");
-    const copyButton = document.querySelector("#copy-results");
-    const emailButton = document.querySelector("#email-results");
-    const resetButton = document.querySelector("#reset-ranks");
-    const printButton = document.querySelector("#print-page");
     const statusLineEl = document.querySelector("#status-line");
 
     let activeCategory = "all";
@@ -1938,28 +1897,6 @@
       }).join("");
     }
 
-    function serializeRankings() {
-      return destinations
-        .map((destination) => {
-          const scores = rankings[destination.id] || {};
-          const tokens = people
-            .filter((person) => scores[person.id] > 0)
-            .map((person) => `${person.code}${scores[person.id]}`);
-
-          if (!tokens.length) return "";
-          return `${encodeURIComponent(destination.id)}:${tokens.join(".")}`;
-        })
-        .filter(Boolean)
-        .join(",");
-    }
-
-    function buildShareUrl() {
-      const url = new URL(window.location.href);
-      const serialized = serializeRankings();
-      url.hash = serialized ? `${HASH_PREFIX}${serialized}` : "";
-      return url.toString();
-    }
-
     function buildOptions(selectedScore) {
       let options = '<option value="">-</option>';
       for (let score = 100; score >= 1; score -= 1) {
@@ -2000,66 +1937,6 @@
       window.setTimeout(() => {
         if (statusLineEl.textContent === message) statusLineEl.textContent = "";
       }, 4200);
-    }
-
-    function buildResultsText() {
-      const ranked = sortedDestinations("combined").filter((destination) => Number.isFinite(destination.sortScore));
-      const date = new Date().toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit"
-      });
-
-      if (!ranked.length) {
-        return [
-          "rome-trip-planner rankings",
-          `Generated: ${date}`,
-          "",
-          "No destinations have been ranked yet.",
-          "",
-          `Planner: ${buildShareUrl()}`
-        ].join("\n");
-      }
-
-      const lines = ranked.map((destination, index) => {
-        const rank = String(index + 1).padStart(2, "0");
-        const scores = rankings[destination.id] || {};
-        const scoreText = people
-          .map((person) => `${person.label}: ${scores[person.id] || "-"}`)
-          .join(", ");
-        return `${rank}. Combined ${formatScore(destination.sortScore)} - ${destination.name} / ${destination.nameJa} (${scoreText}; ${destination.area}, ${destination.time})`;
-      });
-
-      return [
-        "rome-trip-planner rankings",
-        `Generated: ${date}`,
-        "",
-        ...lines,
-        "",
-        `Open ranked list: ${buildShareUrl()}`,
-        "",
-        "Scale: 100 = highest interest, 1 = lowest interest. Combined score averages the assigned ranks; higher scores sort first; blank ranks are ignored and unranked destinations sort last."
-      ].join("\n");
-    }
-
-    async function copyResultsText(text) {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return;
-      }
-
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      textArea.setAttribute("readonly", "");
-      textArea.style.position = "fixed";
-      textArea.style.top = "-1000px";
-      document.body.appendChild(textArea);
-      textArea.select();
-      const copied = document.execCommand("copy");
-      document.body.removeChild(textArea);
-      if (!copied) throw new Error("Copy command was not available.");
     }
 
     function renderDestinations(focusedId = null, focusedPersonId = null) {
@@ -2207,59 +2084,6 @@
       const definition = walkDefinitions.find((item) => item.id === button.dataset.walk);
       activeWalkLimit = definition?.minutes ?? null;
       renderDestinations();
-    });
-
-    shareButton.addEventListener("click", async () => {
-      const text = buildResultsText();
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: "rome-trip-planner rankings",
-            text,
-            url: buildShareUrl()
-          });
-          statusMessage("Shared results.");
-        } else {
-          await copyResultsText(text);
-          statusMessage("Share is unavailable, so results were copied.");
-        }
-      } catch (error) {
-        if (error && error.name === "AbortError") {
-          statusMessage("Share cancelled.");
-          return;
-        }
-        window.location.href = `mailto:?subject=${encodeURIComponent("rome-trip-planner rankings")}&body=${encodeURIComponent(text)}`;
-      }
-    });
-
-    copyButton.addEventListener("click", async () => {
-      try {
-        await copyResultsText(buildResultsText());
-        statusMessage("Copied ranked results.");
-      } catch {
-        statusMessage("Copy was not available. Use Email results instead.");
-      }
-    });
-
-    emailButton.addEventListener("click", () => {
-      const text = buildResultsText();
-      window.location.href = `mailto:?subject=${encodeURIComponent("rome-trip-planner rankings")}&body=${encodeURIComponent(text)}`;
-    });
-
-    resetButton.addEventListener("click", () => {
-      const confirmed = window.confirm(`Reset all shared rome-trip-planner ranks for ${travelerText}?`);
-      if (!confirmed) return;
-
-      rankings = {};
-      remoteSync.pendingClearAll = true;
-      remoteSync.pendingChanges.clear();
-      saveRankings();
-      queueRemoteSave();
-      renderDestinations();
-    });
-
-    printButton.addEventListener("click", () => {
-      window.print();
     });
 
     renderDestinations();
